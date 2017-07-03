@@ -7,22 +7,29 @@
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_gpio.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_system.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_bus.h"
+#include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_utils.h"
+
+typedef struct pll_t {
+    LL_UTILS_PLLInitTypeDef prescale;
+    LL_UTILS_ClkInitTypeDef bus;
+} pll_t;
+
+pll_t pll = {.prescale = {.PLLMul = 1, .PLLDiv = 1},
+    .bus = {.AHBCLKDivider = 2,
+        .APB1CLKDivider = 2,
+        .APB2CLKDivider = 2
+    }};
 
 int main(void) {
+
     // enable prefetch
     // TODO: explain why
     LL_FLASH_EnablePrefetch();
 
     // set up clocks - OSC_IN and OSC_OUT on PH0 and PH1,
     // HSE input clock is 14.7456 MHz
-    while (!LL_RCC_HSE_IsReady());
-    LL_RCC_HSE_Enable();
-
-    // get system clock from PLL
-    LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_2);
-    LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_2);
-    LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_2);
-    LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_PLL);
+    // set PLL as system clock, using HSE as source
+    LL_PLL_ConfigSystemClock_HSE(HSE_VALUE, LL_UTILS_HSEBYPASS_OFF, &pll.prescale, &pll.bus);
 
     // enable peripheral clocks
     LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOA |
@@ -59,16 +66,27 @@ int main(void) {
     // set up peripherals - alternate pin functions are on page 45/136
     // of DM00141136 - STM32L071x8 datasheet
     //   - SPI for CC1125 - SPI1 on PA4/5/6/7
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_4, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE);
+
     LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_4, LL_GPIO_AF_0); // SPI1_NSS
     LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_0); // SPI1_SCK
     LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_6, LL_GPIO_AF_0); // SPI1_MISO
     LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_7, LL_GPIO_AF_0); // SPI1_MOSI
 
     //   - UART for CANSAT - USART2 on PA2/3
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_ALTERNATE);
+
     LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_2, LL_GPIO_AF_4); // USART2_TX
     LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_3, LL_GPIO_AF_4); // USART2_RX
 
     //   - UART for n2420 - USART1 on PA9/10
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9,  LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE);
+
     LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_9,  LL_GPIO_AF_4); // USART1_TX
     LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_10, LL_GPIO_AF_4); // USART1_RX
 
