@@ -14,10 +14,10 @@ typedef struct pll_t {
     LL_UTILS_ClkInitTypeDef bus;
 } pll_t;
 
-pll_t pll = {.prescale = {.PLLMul = 1, .PLLDiv = 1},
-    .bus = {.AHBCLKDivider = 2,
-        .APB1CLKDivider = 2,
-        .APB2CLKDivider = 2
+pll_t pll = {.prescale = {.PLLMul = LL_RCC_PLL_MUL_3, .PLLDiv = LL_RCC_PLL_DIV_2},
+    .bus = {.AHBCLKDivider = LL_RCC_SYSCLK_DIV_1,
+            .APB1CLKDivider = LL_RCC_APB1_DIV_1,
+            .APB2CLKDivider = LL_RCC_APB2_DIV_1,
     }};
 
 int main(void) {
