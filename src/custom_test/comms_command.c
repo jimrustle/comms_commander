@@ -14,14 +14,16 @@ typedef struct pll_t {
     LL_UTILS_ClkInitTypeDef bus;
 } pll_t;
 
-pll_t pll = {.prescale = {.PLLMul = LL_RCC_PLL_MUL_3, .PLLDiv = LL_RCC_PLL_DIV_2},
+pll_t pll = {
+    .prescale = {.PLLMul = LL_RCC_PLL_MUL_3, .PLLDiv = LL_RCC_PLL_DIV_2
+    },
     .bus = {.AHBCLKDivider = LL_RCC_SYSCLK_DIV_1,
             .APB1CLKDivider = LL_RCC_APB1_DIV_1,
             .APB2CLKDivider = LL_RCC_APB2_DIV_1,
-    }};
+    }
+};
 
 int main(void) {
-
     // enable prefetch
     // TODO: explain why
     LL_FLASH_EnablePrefetch();
@@ -93,7 +95,20 @@ int main(void) {
     while (1) {
         // goodnight sweet prince
         // FIXME: figure out peripheral sleeping
-        __WFI();
+        /*__WFI();*/
+
+
+        // write to heartbeat LED
+        LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
+
+        for (int i = 0; i < 1000; i++) {
+            for (int j = 0; j < 1000; j++) {
+                __asm("nop");
+            }
+        }
+
+        // just kidding, turn it off
+        LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_13);
     }
 
     return 0;
