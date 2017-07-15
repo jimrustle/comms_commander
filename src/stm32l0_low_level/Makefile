@@ -1,5 +1,5 @@
 TARGET := comms_command
-OBJECTS := $(TARGET).o startup.o vectors.o system_stm32l0xx.o stm32l0xx_ll_utils.o
+OBJECTS := $(TARGET).o startup_stm32l071xx.o system_stm32l0xx.o stm32l0xx_ll_utils.o
 
 RAM_START := 0x8000000
 
@@ -27,7 +27,7 @@ LDFLAGS		+= --static -nostartfiles
 LDFLAGS		+= -Wl,-Map=$(TARGET).map
 LDFLAGS		+= -Wl,--gc-sections
 
-LDLIBS		+= -Wl,--start-group -lnosys -Wl,--end-group -T custom.ld #stm32l0xxC.ld # -lc -lgcc
+LDLIBS		+= -Wl,--start-group -lnosys -Wl,--end-group -T stm32l0xxC.ld # -lc -lgcc
 
 #WARNS := -Wall -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wstrict-prototypes -Wmissing-prototypes # -Wconversion -Wno-main
 #OPTIMS = -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -finline-limit=3 -fno-inline-small-functions -ffunction-sections -fdata-sections -ffreestanding -Wl,--relax

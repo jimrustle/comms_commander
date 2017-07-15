@@ -11,11 +11,11 @@ MEMORY {
     eeprom   (r) : ORIGIN = 0x08080000, LENGTH = 6K
 }
 
-GROUP (
-    libgcc.a
-    libc.a
-    libm.a
-)
+/*GROUP (*/
+    /*libgcc.a*/
+    /*libc.a*/
+    /*libm.a*/
+/*)*/
 
 __stack = ORIGIN(ram) + LENGTH(ram);
 _estack = __stack;
