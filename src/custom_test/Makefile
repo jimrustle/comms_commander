@@ -1,5 +1,5 @@
 TARGET := comms_command
-OBJECTS := $(TARGET).o startup.o system_stm32l0xx.o stm32l0xx_ll_utils.o vectors.o
+OBJECTS := $(TARGET).o startup.o system_stm32l0xx.o stm32l0xx_ll_utils.o vectors.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o
 
 RAM_START := 0x8000000
 
@@ -14,7 +14,7 @@ OBJDUMP := $(ARCH)-objdump
 SIZE    := $(ARCH)-size
 GDB		:= $(ARCH)-gdb
 
-OPT		:= -g -Os $(MCU) -msoft-float -DSTM32L0 -I../../libs/stm32l0_low_level/stm32l0_ll
+OPT		:= -g -Os $(MCU) -msoft-float -DSTM32L0 -DUSE_FULL_LL_DRIVER -I../../libs/stm32l0_low_level/stm32l0_ll
 CSTD	:= -std=c11
 
 

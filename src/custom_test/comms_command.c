@@ -2,26 +2,48 @@
 
 #define HSE_VALUE (14745600)
 
+#ifndef USE_FULL_LL_DRIVER
+#define USE_FULL_LL_DRIVER
+#endif /* ifndef USE_FULL_LL_DRIVER */
+
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l071xx.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_rcc.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_gpio.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_system.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_bus.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_utils.h"
+#include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_usart.h"
 
 typedef struct pll_t {
     LL_UTILS_PLLInitTypeDef prescale;
     LL_UTILS_ClkInitTypeDef bus;
 } pll_t;
 
-pll_t pll = {
-    .prescale = {.PLLMul = LL_RCC_PLL_MUL_3, .PLLDiv = LL_RCC_PLL_DIV_2
+pll_t pll_init = {
+    .prescale = {.PLLMul = LL_RCC_PLL_MUL_4, .PLLDiv = LL_RCC_PLL_DIV_2
     },
     .bus = {.AHBCLKDivider = LL_RCC_SYSCLK_DIV_1,
             .APB1CLKDivider = LL_RCC_APB1_DIV_1,
             .APB2CLKDivider = LL_RCC_APB2_DIV_1,
     }
 };
+
+typedef struct usart_t {
+  LL_USART_InitTypeDef init;
+  LL_USART_ClockInitTypeDef clock;
+} usart_t;
+
+usart_t usart_init;
+
+void error_catch(void);
+void error_catch(void) {
+  // constant LED
+  LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
+
+  while (1) {
+    __asm("nop");
+  }
+}
 
 int main(void) {
     // enable prefetch
@@ -31,8 +53,10 @@ int main(void) {
     // set up clocks - OSC_IN and OSC_OUT on PH0 and PH1,
     // HSE input clock is 14.7456 MHz
     // set PLL as system clock, using HSE as source
-    //LL_PLL_ConfigSystemClock_HSE(HSE_VALUE, LL_UTILS_HSEBYPASS_OFF, &pll.prescale, &pll.bus);
-    LL_PLL_ConfigSystemClock_HSI(&pll.prescale, &pll.bus);
+    /*LL_PLL_ConfigSystemClock_HSE(HSE_VALUE, LL_UTILS_HSEBYPASS_OFF, &pll_init.prescale, &pll_init.bus);*/
+    /*LL_SetSystemCoreClock(HSE_VALUE);*/
+
+    LL_PLL_ConfigSystemClock_HSI(&pll_init.prescale, &pll_init.bus);
 
     // enable peripheral clocks
     LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOA |
@@ -50,6 +74,9 @@ int main(void) {
     // | PB0  | CC1125_Tx_or_Rx | Switches Rx and Tx chain (0 = Rx, 1 = Tx)
     // | PB4  | CANSAT_Enable   | Enables power switch to CANSAT
     LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_0, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_0, LL_GPIO_OUTPUT_PUSHPULL);
+    LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_0, LL_GPIO_PULL_DOWN);
+
     LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_4, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_4, LL_GPIO_OUTPUT_PUSHPULL);
     LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_4, LL_GPIO_PULL_DOWN);
@@ -62,8 +89,14 @@ int main(void) {
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_0,  LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_0, LL_GPIO_OUTPUT_PUSHPULL);
     LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_0, LL_GPIO_PULL_DOWN);
+
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_15, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_15, LL_GPIO_OUTPUT_PUSHPULL);
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_15, LL_GPIO_PULL_DOWN);
+
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_8,  LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_PUSHPULL);
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_8, LL_GPIO_PULL_DOWN);
 
     // | Pin  | Pin Name        | Description
     // | ---- | --------------- | -----------------------------------------
@@ -102,6 +135,14 @@ int main(void) {
     LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_0);
     LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_0);
 
+    /* USART configuration */
+    LL_USART_StructInit(&usart_init.init);
+    LL_USART_ClockStructInit(&usart_init.clock);
+
+    LL_USART_ClockInit(USART1, &usart_init.clock);
+    LL_USART_Init(USART1, &usart_init.init);
+    LL_USART_Enable(USART1);
+
     while (1) {
         // goodnight sweet prince
         // FIXME: figure out peripheral sleeping
@@ -109,6 +150,7 @@ int main(void) {
 
         // write to heartbeat LED
         LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
+        LL_USART_TransmitData8(USART1, 'A');
 
         for (int i = 0; i < 1000; i++) {
             for (int j = 0; j < 1400; j++) {
@@ -118,6 +160,7 @@ int main(void) {
 
         /* just kidding, turn it off*/
         LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_13);
+        LL_USART_TransmitData8(USART1, 'B');
 
         for (int i = 0; i < 1000; i++) {
             for (int j = 0; j < 1400; j++) {
