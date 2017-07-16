@@ -1,5 +1,5 @@
 TARGET := comms_command
-OBJECTS := $(TARGET).o startup.o vectors.o system_stm32l0xx.o stm32l0xx_ll_utils.o
+OBJECTS := $(TARGET).o startup.o system_stm32l0xx.o stm32l0xx_ll_utils.o vectors.o
 
 RAM_START := 0x8000000
 
@@ -14,7 +14,7 @@ OBJDUMP := $(ARCH)-objdump
 SIZE    := $(ARCH)-size
 GDB		:= $(ARCH)-gdb
 
-OPT		:= -Os $(MCU) -msoft-float -DSTM32L0 -I../../libs/stm32l0_low_level/stm32l0_ll
+OPT		:= -g -Os $(MCU) -msoft-float -DSTM32L0 -I../../libs/stm32l0_low_level/stm32l0_ll
 CSTD	:= -std=c11
 
 
@@ -23,11 +23,11 @@ CFLAGS	+= -Wall -Wextra -Wshadow -Wimplicit-function-declaration
 CFLAGS	+= -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
 CFLAGS	+= -fno-common -ffunction-sections -fdata-sections
 
-LDFLAGS		+= --static -nostartfiles
+LDFLAGS		+=  --static -nostartfiles
 LDFLAGS		+= -Wl,-Map=$(TARGET).map
 LDFLAGS		+= -Wl,--gc-sections
 
-LDLIBS		+= -Wl,--start-group -lnosys -Wl,--end-group -T custom.ld #stm32l0xxC.ld # -lc -lgcc
+LDLIBS		+= -Wl,--start-group -Wl,--end-group -T custom.ld
 
 #WARNS := -Wall -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wstrict-prototypes -Wmissing-prototypes # -Wconversion -Wno-main
 #OPTIMS = -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -finline-limit=3 -fno-inline-small-functions -ffunction-sections -fdata-sections -ffreestanding -Wl,--relax
@@ -44,7 +44,7 @@ all: $(TARGET).elf
 
 $(TARGET).elf: $(OBJECTS)
 	$(LD) $(MCU) $(LDFLAGS) $(LDLIBS) $(OBJECTS) -o $(TARGET).elf
-	@#$(OBJCOPY) -O ihex $(TARGET).elf $(TARGET).hex
+	$(OBJCOPY) -O ihex $(TARGET).elf $(TARGET).hex
 	$(OBJDUMP) -d $(TARGET).elf > $(TARGET).lst
 	$(SIZE) $(TARGET).elf
 
@@ -60,11 +60,10 @@ clean:
 upload: $(TARGET).elf
 	@# get hex size of our program
 	$(eval PROG_SIZE := $(shell arm-none-eabi-size comms_command.elf | tail -n 1 | cut -f 5 | xargs))
-	@echo "Program size is: 0x$(PROG_SIZE) bytes"
+	@$(eval PROG_SIZE := $(shell echo "$(PROG_SIZE)" | tr '[:lower:]' '[:upper:]'))
 	@# add ten bytes, and write to flash
-	$(eval PROG_SIZE := $(shell echo "$(PROG_SIZE) 10 + p" | dc))
-	@#$(\eval PROG_SIZE := $(shell echo "$(PROG_SIZE)" | sed -e 's/ //g;s/^/0x/'))
-	@echo "stm32flash /dev/ttyUSB0 -w $(TARGET).elf -v -S $(RAM_START):0x$(PROG_SIZE)"
+	$(eval PROG_SIZE := $(shell echo "16o 16i $(PROG_SIZE) A + p" | dc))
+	stm32flash /dev/ttyUSB0 -w $(TARGET).hex -v -S $(RAM_START):0x$(PROG_SIZE)
 
 run: $(TARGET).elf
 	stm32flash /dev/ttyUSB0 -g 0x0

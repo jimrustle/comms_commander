@@ -11,12 +11,6 @@ MEMORY {
     eeprom   (r) : ORIGIN = 0x08080000, LENGTH = 6K
 }
 
-/*GROUP (*/
-    /*libgcc.a*/
-    /*libc.a*/
-    /*libm.a*/
-/*)*/
-
 __stack = ORIGIN(ram) + LENGTH(ram);
 _estack = __stack;
 
@@ -33,25 +27,10 @@ SECTIONS {
 
     .text : ALIGN(4) {
         *( .text )
+        *( .text* )
     } > flash
 
-    .ARM.extab : {
-        *( .ARM.extab* .gnu.linkonce.armextab.* )
-    } > flash
-
-    .ARM.exidx : {
-        __exidx_start = .;
-        *( .ARM.exidx* .gnu.linkonce.armexidx.* )
-        __exidx_end = .;
-    } > flash
-
-    .eh_frame_hdr : {
-        *( .eh_frame_hdr )
-    } > flash
-
-    .eh_frame : ONLY_IF_RO {
-        *( .eh_frame )
-    } > flash
+    _etext = .;
 
     .rodata : ALIGN(4) {
         . = ALIGN(4);
@@ -61,8 +40,6 @@ SECTIONS {
         . = ALIGN(4);
         __rodata_end__ = .;
     } > flash 
-
-    _etext = .;
 
     .data : ALIGN(4) {
         FILL(0xA5)
@@ -95,6 +72,30 @@ SECTIONS {
          . = ALIGN(4) ;
         __noinit_end__ = .;
     } > ram
+
+    .ARM.extab : {
+        *( .ARM.extab* .gnu.linkonce.armextab.* )
+    } > flash
+
+    .ARM.exidx : {
+        __exidx_start = .;
+        *( .ARM.exidx* .gnu.linkonce.armexidx.* )
+        __exidx_end = .;
+    } > flash
+
+    .eh_frame_hdr : {
+        *( .eh_frame_hdr )
+    } > flash
+
+    .eh_frame : ONLY_IF_RO {
+        *( .eh_frame )
+    } > flash
+
+    /DISCARD/ : {
+        libc.a ( * )
+        libm.a ( * )
+        libgcc.a ( * )
+    }
 
 }
 

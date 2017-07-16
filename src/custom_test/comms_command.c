@@ -31,7 +31,8 @@ int main(void) {
     // set up clocks - OSC_IN and OSC_OUT on PH0 and PH1,
     // HSE input clock is 14.7456 MHz
     // set PLL as system clock, using HSE as source
-    LL_PLL_ConfigSystemClock_HSE(HSE_VALUE, LL_UTILS_HSEBYPASS_OFF, &pll.prescale, &pll.bus);
+    //LL_PLL_ConfigSystemClock_HSE(HSE_VALUE, LL_UTILS_HSEBYPASS_OFF, &pll.prescale, &pll.bus);
+    LL_PLL_ConfigSystemClock_HSI(&pll.prescale, &pll.bus);
 
     // enable peripheral clocks
     LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOA |
@@ -50,6 +51,8 @@ int main(void) {
     // | PB4  | CANSAT_Enable   | Enables power switch to CANSAT
     LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_0, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_4, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_4, LL_GPIO_OUTPUT_PUSHPULL);
+    LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_4, LL_GPIO_PULL_DOWN);
 
     // | Pin  | Pin Name        | Description
     // | ---- | --------------- | -----------------------------------------
@@ -57,6 +60,8 @@ int main(void) {
     // | PA15 | PA_Enable       | Enables (logic to the gate of) power amplifier
     // | PA8  | N2420_Enable    | Enables power switch to N2420
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_0,  LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_0, LL_GPIO_OUTPUT_PUSHPULL);
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_0, LL_GPIO_PULL_DOWN);
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_15, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_8,  LL_GPIO_MODE_OUTPUT);
 
@@ -64,6 +69,7 @@ int main(void) {
     // | ---- | --------------- | -----------------------------------------
     // | PC13 | MCU_Alive       | Connected as current source to heartbeat LED
     LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_13, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_13, LL_GPIO_OUTPUT_PUSHPULL);
 
     // set up peripherals - alternate pin functions are on page 45/136
     // of DM00141136 - STM32L071x8 datasheet
@@ -73,42 +79,51 @@ int main(void) {
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE);
 
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_4, LL_GPIO_AF_0); // SPI1_NSS
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_0); // SPI1_SCK
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_6, LL_GPIO_AF_0); // SPI1_MISO
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_7, LL_GPIO_AF_0); // SPI1_MOSI
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_4, LL_GPIO_AF_0);  // SPI1_NSS
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_0);  // SPI1_SCK
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_6, LL_GPIO_AF_0);  // SPI1_MISO
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_7, LL_GPIO_AF_0);  // SPI1_MOSI
 
-    //   - UART for CANSAT - USART2 on PA2/3
+    /*   - UART for CANSAT - USART2 on PA2/3*/
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_ALTERNATE);
 
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_2, LL_GPIO_AF_4); // USART2_TX
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_3, LL_GPIO_AF_4); // USART2_RX
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_2, LL_GPIO_AF_4);  // USART2_TX
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_3, LL_GPIO_AF_4);  // USART2_RX
 
-    //   - UART for n2420 - USART1 on PA9/10
+    /*   - UART for n2420 - USART1 on PA9/10*/
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9,  LL_GPIO_MODE_ALTERNATE);
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE);
 
-    LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_9,  LL_GPIO_AF_4); // USART1_TX
-    LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_10, LL_GPIO_AF_4); // USART1_RX
+    LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_9,  LL_GPIO_AF_4);  // USART1_TX
+    LL_GPIO_SetAFPin_8_15(GPIOA, LL_GPIO_PIN_10, LL_GPIO_AF_4);  // USART1_RX
+
+    /* turn off CANSAT and CC1125 */
+    LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_0);
+    LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_0);
 
     while (1) {
         // goodnight sweet prince
         // FIXME: figure out peripheral sleeping
         /*__WFI();*/
 
-
         // write to heartbeat LED
         LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
 
         for (int i = 0; i < 1000; i++) {
-            for (int j = 0; j < 1000; j++) {
+            for (int j = 0; j < 1400; j++) {
                 __asm("nop");
             }
         }
 
-        // just kidding, turn it off
+        /* just kidding, turn it off*/
         LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_13);
+
+        for (int i = 0; i < 1000; i++) {
+            for (int j = 0; j < 1400; j++) {
+                __asm("nop");
+            }
+        }
     }
 
     return 0;
