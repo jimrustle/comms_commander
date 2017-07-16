@@ -1,6 +1,7 @@
 #include <stdbool.h>
 
-#define HSE_VALUE (14745600)
+/*#define HSE_VALUE ((uint32_t) 14745600)*/
+#define HSE_VALUE ((uint32_t) 8000000)
 
 #ifndef USE_FULL_LL_DRIVER
 #define USE_FULL_LL_DRIVER
@@ -10,9 +11,14 @@
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_rcc.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_gpio.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_system.h"
+#include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_tim.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_bus.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_utils.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_usart.h"
+
+#include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_hal_cortex.h"
+
+int printf(const char *format, ...);
 
 typedef struct pll_t {
     LL_UTILS_PLLInitTypeDef prescale;
@@ -34,6 +40,8 @@ typedef struct usart_t {
 } usart_t;
 
 usart_t usart_init;
+
+LL_TIM_InitTypeDef tim_init;
 
 void error_catch(void);
 void error_catch(void) {
@@ -57,6 +65,7 @@ int main(void) {
     /*LL_SetSystemCoreClock(HSE_VALUE);*/
 
     LL_PLL_ConfigSystemClock_HSI(&pll_init.prescale, &pll_init.bus);
+    /*LL_Init1msTick(SystemCoreClock);*/
 
     // enable peripheral clocks
     LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOA |
@@ -66,7 +75,8 @@ int main(void) {
     LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1 |
                              LL_APB2_GRP1_PERIPH_SPI1);
 
-    LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2);
+    LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2 |
+                             LL_APB1_GRP1_PERIPH_TIM2);
 
     // set up peripherals - GPIO for control/output:
     // | Pin  | Pin Name        | Description
@@ -143,31 +153,36 @@ int main(void) {
     LL_USART_Init(USART1, &usart_init.init);
     LL_USART_Enable(USART1);
 
+
+    HAL_NVIC_EnableIRQ(TIM2_IRQn);
+    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
+
+    LL_TIM_StructInit(&tim_init);
+    LL_TIM_Init(TIM2, &tim_init);
+    LL_TIM_EnableCounter(TIM2);
+    LL_TIM_SetPrescaler(TIM2, 65535);
+    LL_TIM_SetClockDivision(TIM2, LL_TIM_CLOCKDIVISION_DIV4);
+    LL_TIM_SetAutoReload(TIM2, 500);
+
+    LL_TIM_EnableIT_UPDATE(TIM2);
+
     while (1) {
         // goodnight sweet prince
         // FIXME: figure out peripheral sleeping
-        /*__WFI();*/
-
-        // write to heartbeat LED
-        LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
-        LL_USART_TransmitData8(USART1, 'A');
-
-        for (int i = 0; i < 1000; i++) {
-            for (int j = 0; j < 1400; j++) {
-                __asm("nop");
-            }
-        }
-
-        /* just kidding, turn it off*/
-        LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_13);
-        LL_USART_TransmitData8(USART1, 'B');
-
-        for (int i = 0; i < 1000; i++) {
-            for (int j = 0; j < 1400; j++) {
-                __asm("nop");
-            }
-        }
+        __WFI();
     }
 
     return 0;
 }
+
+void putchar(char c) {
+    while (!LL_USART_IsActiveFlag_TC(USART1));
+    LL_USART_TransmitData8(USART1, c);
+}
+
+void TIM2_IRQHandler() {
+    LL_TIM_ClearFlag_UPDATE(TIM2);
+    LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_13);
+    printf("hello world!\r\n");
+}
+

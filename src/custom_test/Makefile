@@ -1,5 +1,5 @@
 TARGET := comms_command
-OBJECTS := $(TARGET).o startup.o system_stm32l0xx.o stm32l0xx_ll_utils.o vectors.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o
+OBJECTS := $(TARGET).o startup.o system_stm32l0xx.o stm32l0xx_ll_utils.o vectors.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o printf.o stm32l0xx_ll_tim.o stm32l0xx_hal_cortex.o
 
 RAM_START := 0x8000000
 
@@ -21,7 +21,7 @@ CSTD	:= -std=c11
 CFLAGS	+= $(OPT) $(CSTD) -pedantic
 CFLAGS	+= -Wall -Wextra -Wshadow -Wimplicit-function-declaration
 CFLAGS	+= -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
-CFLAGS	+= -fno-common -ffunction-sections -fdata-sections
+CFLAGS	+= -fno-common -ffunction-sections -fdata-sections -fno-builtin
 
 LDFLAGS		+=  --static -nostartfiles
 LDFLAGS		+= -Wl,-Map=$(TARGET).map
