@@ -1,3 +1,5 @@
+#include "printf.h"
+
 /*
    Copyright 2001 Georges Menie
 https://www.menie.org/georges/embedded/small_printf_source_code.html
