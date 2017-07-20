@@ -19,7 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-static void printchar(char **str, int c)
+void printchar(char **str, int c)
 {
     extern int putchar(int c);
     if (str) {
@@ -32,7 +32,7 @@ static void printchar(char **str, int c)
 #define PAD_RIGHT 1
 #define PAD_ZERO 2
 
-static int prints(char **out, const char *string, int width, int pad)
+int prints(char **out, const char *string, int width, int pad)
 {
     register int pc = 0, padchar = ' ';
 
@@ -65,7 +65,7 @@ static int prints(char **out, const char *string, int width, int pad)
 /* the following should be enough for 32 bit int */
 #define PRINT_BUF_LEN 12
 
-static int printi(char **out, int i, int b, int sg, int width, int pad, int letbase)
+int printi(char **out, int i, int b, int sg, int width, int pad, int letbase)
 {
     char print_buf[PRINT_BUF_LEN];
     register char *s;
@@ -108,7 +108,7 @@ static int printi(char **out, int i, int b, int sg, int width, int pad, int letb
     return pc + prints (out, s, width, pad);
 }
 
-static int print(char **out, int *varg)
+int print(char **out, int *varg)
 {
     register int width, pad;
     register int pc = 0;

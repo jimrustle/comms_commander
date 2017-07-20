@@ -34,7 +34,7 @@ void add_c(char c) {
         }
 
         // check match
-        for (int i = 0; i < 6; ++i) {
+        for (int i = 0; i < 6; i++) {
             if (strcmp(command_buf, command_table[i]) == 0) {
                 commands[i]();
                 break;

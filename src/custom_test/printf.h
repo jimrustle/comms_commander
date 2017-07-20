@@ -18,10 +18,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-static void printchar(char **str, int c);
-static int prints(char **out, const char *string, int width, int pad);
-static int printi(char **out, int i, int b, int sg, int width, int pad, int letbase);
-static int print(char **out, int *varg);
+void printchar(char **str, int c);
+int prints(char **out, const char *string, int width, int pad);
+int printi(char **out, int i, int b, int sg, int width, int pad, int letbase);
+int print(char **out, int *varg);
 int printf(const char *format, ...);
 int sprintf(char *out, const char *format, ...);
 

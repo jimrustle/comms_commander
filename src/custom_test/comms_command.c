@@ -16,11 +16,16 @@
 
 #include "peripherals.h"
 #include "printf.h"
+#include "print_queue.h"
 #include "radio.h"
 #include "command.h"
+#include <string.h>
+
+char sendchar = ' ';
 
 void error_catch(void);
 void error_catch(void) {
+  __disable_irq();
   // constant LED
   LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
 
@@ -30,44 +35,63 @@ void error_catch(void) {
 }
 
 int main(void) {
-    // enable prefetch
-    // TODO: explain why
-    LL_FLASH_EnablePrefetch();
+  // enable prefetch
+  // TODO: explain why
+  LL_FLASH_EnablePrefetch();
 
-    config_system_clocks();
-    config_gpio();
-    config_uart();
-    config_tim2_nvic();
+  config_system_clocks();
+  config_gpio();
+  config_uart();
+  config_tim2_nvic();
 
-    while (1) {
-        // goodnight sweet prince
-        __WFI();
-    }
+  while (1) {
+    // goodnight sweet prince
+    __WFI();
+  }
 
-    return 0;
+  return 0;
 }
 
 // TODO: implement DMA for UART transmission
-// printf putc
+// putchar loads a circular buffer with characters to transmit
+void putchar(char c);
 void putchar(char c) {
-    while (!LL_USART_IsActiveFlag_TC(USART1));
-    LL_USART_TransmitData8(USART1, c);
+  pq_add_char(c);
+  LL_USART_EnableIT_TXE(USART1);
 }
 
 // interrupt handlers
-
+void TIM2_IRQHandler(void);
 void TIM2_IRQHandler() {
-    LL_TIM_ClearFlag_UPDATE(TIM2);
-    /*LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_13);*/
-    /*printf("hello world!\r\n");*/
+  LL_TIM_ClearFlag_UPDATE(TIM2);
+  LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_13);
+  printf("hello world!\r\n");
 }
 
+void USART1_IRQHandler(void);
 void USART1_IRQHandler() {
-    if (LL_USART_IsActiveFlag_RXNE(USART1)) {
-        /*LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_13);*/
-
-        char c = LL_USART_ReceiveData8(USART1);
-        /*putchar(c);*/
-        add_c(c);
+  if (LL_USART_IsActiveFlag_RXNE(USART1)) {
+    // RXNE flag is cleared by reading from the USART1 data register
+    char c = LL_USART_ReceiveData8(USART1);
+    add_c(c);
+  }
+  if (LL_USART_IsActiveFlag_TXE(USART1)) {
+    if (pq_is_empty()) {
+      LL_USART_DisableIT_TXE(USART1);
+    } else {
+      // TXE flag cleared by writing to USART1 data register
+      LL_USART_TransmitData8(USART1, pq_rem_char());
     }
+  }
+}
+
+// fstack-protector
+uintptr_t __stack_chk_guard = 0xdeadbeef;
+
+void __stack_chk_fail(void);
+void __stack_chk_fail(void) {
+  __disable_irq();
+  while(1) {
+    printf("Stack smashing detected");
+  }
 }

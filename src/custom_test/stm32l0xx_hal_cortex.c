@@ -148,6 +148,7 @@
   *         no subpriority supported in Cortex M0+ based products.   
   * @retval None
   */
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 void HAL_NVIC_SetPriority(IRQn_Type IRQn, uint32_t PreemptPriority, uint32_t SubPriority)
 { 
     /* Check the parameters */
