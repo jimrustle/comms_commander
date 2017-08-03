@@ -5,3 +5,4 @@ void config_system_clocks(void);
 void config_gpio(void);
 void config_uart(void);
 void config_tim2_nvic(void);
+void config_spi(void);

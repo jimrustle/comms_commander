@@ -6,6 +6,7 @@
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_bus.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_rcc.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_tim.h"
+#include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_spi.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_usart.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_utils.h"
 
@@ -35,6 +36,8 @@ typedef struct usart_t {
 usart_t usart_init;
 
 LL_TIM_InitTypeDef tim_init;
+
+LL_SPI_InitTypeDef spi_init;
 
 void config_system_clocks(void) {
     // set up clocks - OSC_IN and OSC_OUT on PH0 and PH1,
@@ -156,3 +159,10 @@ void config_tim2_nvic(void) {
     LL_TIM_EnableIT_UPDATE(TIM2);
 }
 
+void config_spi(void) {
+  LL_SPI_StructInit(&spi_init);
+  LL_SPI_Init(SPI1, &spi_init);
+  LL_SPI_Enable(SPI1);
+
+  /* LL_TIM_EnableIT_UPDATE(TIM2); */
+}

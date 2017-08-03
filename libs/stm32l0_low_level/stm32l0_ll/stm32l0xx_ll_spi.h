@@ -1130,7 +1130,10 @@ __STATIC_INLINE void LL_SPI_TransmitData8(SPI_TypeDef *SPIx, uint8_t TxData)
   */
 __STATIC_INLINE void LL_SPI_TransmitData16(SPI_TypeDef *SPIx, uint16_t TxData)
 {
-  *((__IO uint16_t *)&SPIx->DR) = TxData;
+  /* *((__IO uint16_t *)&SPIx->DR) = TxData; */
+  /* modified 2017-07-22: remove type punning */
+  volatile uint16_t * data_register = (uint16_t *) &SPIx->DR;
+  *data_register = TxData;
 }
 
 /**

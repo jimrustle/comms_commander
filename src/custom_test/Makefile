@@ -1,5 +1,5 @@
 TARGET := comms_command
-OBJECTS := $(TARGET).o startup.o vectors.o printf.o print_queue.o peripherals.o radio.o command.o system_stm32l0xx.o stm32l0xx_hal_cortex.o stm32l0xx_ll_utils.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o stm32l0xx_ll_tim.o
+OBJECTS := $(TARGET).o startup.o vectors.o printf.o print_queue.o peripherals.o radio.o command.o radio_cc1125.o spi.o system_stm32l0xx.o stm32l0xx_hal_cortex.o stm32l0xx_ll_utils.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o stm32l0xx_ll_tim.o stm32l0xx_ll_spi.o
 
 RAM_START := 0x8000000
 
@@ -14,7 +14,7 @@ OBJDUMP := $(ARCH)-objdump
 SIZE    := $(ARCH)-size
 GDB		:= $(ARCH)-gdb
 
-OPT		:= -g -Os $(MCU) -msoft-float -DSTM32L0 -DUSE_FULL_LL_DRIVER -I../../libs/stm32l0_low_level/stm32l0_ll
+OPT		:= -ggdb -Os $(MCU) -msoft-float -DSTM32L0 -DUSE_FULL_LL_DRIVER -I../../libs/stm32l0_low_level/stm32l0_ll
 CSTD	:= -std=c11
 
 
@@ -48,8 +48,11 @@ $(TARGET).elf: $(OBJECTS)
 	$(OBJDUMP) -d $(TARGET).elf > $(TARGET).lst
 	$(SIZE) $(TARGET).elf
 
-debug:
-	@echo "debug"
+debug: $(TARGET).elf
+	arm-none-eabi-gdb -ex "target extended-remote localhost:3333" comms_command.elf
+
+debug_telnet: $(TARGET).elf
+	telnet localhost 4444
 
 dump: $(TARGET).elf
 	cat $(TARGET).lst
@@ -57,7 +60,10 @@ dump: $(TARGET).elf
 clean:
 	rm $(TARGET).lst $(TARGET).elf $(OBJECTS) $(TARGET).map
 
-upload: $(TARGET).elf
+upload_oo: $(TARGET).elf
+	echo "flash write_image erase '$(TARGET).hex'" | telnet localhost 4444
+
+upload_sb: $(TARGET).elf
 	@# get hex size of our program
 	$(eval PROG_SIZE := $(shell arm-none-eabi-size comms_command.elf | tail -n 1 | cut -f 5 | xargs))
 	@$(eval PROG_SIZE := $(shell echo "$(PROG_SIZE)" | tr '[:lower:]' '[:upper:]'))

@@ -13,15 +13,16 @@
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_rcc.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_gpio.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_usart.h"
+#include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_utils.h"
 
+#include "command.h"
 #include "peripherals.h"
 #include "printf.h"
 #include "print_queue.h"
 #include "radio.h"
-#include "command.h"
-#include <string.h>
+#include "radio_cc1125.h"
 
-char sendchar = ' ';
+volatile uint8_t delay = 0;
 
 void error_catch(void);
 void error_catch(void) {
@@ -43,17 +44,35 @@ int main(void) {
   config_gpio();
   config_uart();
   config_tim2_nvic();
+  config_spi();
+
+  radio_CC1125_power_on();
+
+  printf("hi\r\n");
+
+  while (delay < 5);
+  printf("configuring cc1125\r\n");
+  printf("configuring cc1125\r\n");
+  printf("configuring cc1125\r\n");
+  printf("configuring cc1125\r\n");
+  printf("configuring cc1125\r\n");
+  printf("configuring cc1125\r\n");
+
+  cc1125_config_regs();
+
+  printf("ayy lmao\r\n");
+  /* cc1125_manual_calibrate(); */
 
   while (1) {
-    // goodnight sweet prince
-    __WFI();
+      // goodnight sweet prince
+      __WFI();
   }
 
   return 0;
 }
 
 // TODO: implement DMA for UART transmission
-// putchar loads a circular buffer with characters to transmit
+// putchar loads a circular buffer with characters to transmit (print_queue.c)
 void putchar(char c);
 void putchar(char c) {
   pq_add_char(c);
@@ -64,8 +83,12 @@ void putchar(char c) {
 void TIM2_IRQHandler(void);
 void TIM2_IRQHandler() {
   LL_TIM_ClearFlag_UPDATE(TIM2);
+  delay++;
+  if (delay > 15) {
+    delay = 6;
+  }
   LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_13);
-  printf("hello world!\r\n");
+  printf("aaaa! %d\r\n", delay);
 }
 
 void USART1_IRQHandler(void);
@@ -91,7 +114,6 @@ uintptr_t __stack_chk_guard = 0xdeadbeef;
 void __stack_chk_fail(void);
 void __stack_chk_fail(void) {
   __disable_irq();
-  while(1) {
-    printf("Stack smashing detected");
-  }
+  printf("Stack smashing detected");
+  error_catch();
 }
