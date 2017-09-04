@@ -1,3 +1,6 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 #include <stdbool.h>
 
 /*#define HSE_VALUE ((uint32_t) 14745600)*/
@@ -21,6 +24,7 @@
 #include "print_queue.h"
 #include "radio.h"
 #include "radio_cc1125.h"
+#include "log.h"
 
 volatile uint8_t delay = 0;
 
@@ -48,22 +52,8 @@ int main(void) {
 
   radio_CC1125_power_on();
 
-  printf("hi\r\n");
-
-  while (delay < 5);
-  printf("configuring cc1125\r\n");
-  printf("configuring cc1125\r\n");
-  printf("configuring cc1125\r\n");
-  printf("configuring cc1125\r\n");
-  printf("configuring cc1125\r\n");
-  printf("configuring cc1125\r\n");
-
-  cc1125_config_regs();
-
-  printf("ayy lmao\r\n");
-  /* cc1125_manual_calibrate(); */
-
   while (1) {
+    //pr_str("hello world");
       // goodnight sweet prince
       __WFI();
   }
@@ -84,29 +74,44 @@ void TIM2_IRQHandler(void);
 void TIM2_IRQHandler() {
   LL_TIM_ClearFlag_UPDATE(TIM2);
   delay++;
-  if (delay > 15) {
-    delay = 6;
+  if (delay > 10) {
+    delay = 0;
   }
   LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_13);
-  printf("aaaa! %d\r\n", delay);
 }
 
 void USART1_IRQHandler(void);
 void USART1_IRQHandler() {
+  /* __disable_irq(); */
+  // receive
   if (LL_USART_IsActiveFlag_RXNE(USART1)) {
     // RXNE flag is cleared by reading from the USART1 data register
     char c = LL_USART_ReceiveData8(USART1);
     add_c(c);
+
+    // echo char to serial
+    if (c == '\r') {
+      pq_add_char('\r');
+      pq_add_char('\n');
+    }
+    else {
+      pr_ch(c);
+    }
   }
-  if (LL_USART_IsActiveFlag_TXE(USART1)) {
+
+  // transmit
+  if (LL_USART_IsEnabledIT_TXE(USART1) && LL_USART_IsActiveFlag_TXE(USART1)) {
     if (pq_is_empty()) {
       LL_USART_DisableIT_TXE(USART1);
     } else {
       // TXE flag cleared by writing to USART1 data register
       LL_USART_TransmitData8(USART1, pq_rem_char());
     }
+  } else {
+    LL_USART_DisableIT_TXE(USART1);
   }
-}
+  /* __enable_irq(); */
+ }
 
 // fstack-protector
 uintptr_t __stack_chk_guard = 0xdeadbeef;
@@ -114,6 +119,6 @@ uintptr_t __stack_chk_guard = 0xdeadbeef;
 void __stack_chk_fail(void);
 void __stack_chk_fail(void) {
   __disable_irq();
-  printf("Stack smashing detected");
+  /* printf("Stack smashing detected\0"); */
   error_catch();
 }

@@ -1,261 +1,417 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
+#include "spi.h"
+#include "log.h"
+
+/*****************************************************************************
+//  @file   cc112x_spi.c
+//
+//  @brief  Implementation file for basic and necessary functions
+//          to communicate with CC112X over SPI
+//
+//  Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+//
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions
+//  are met:
+//
+//    Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//
+//    Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+//
+//    Neither the name of Texas Instruments Incorporated nor the names of
+//    its contributors may be used to endorse or promote products derived
+//    from this software without specific prior written permission.
+//
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+****************************************************************************/
 
 #include "radio_cc1125.h"
-#include "spi.h"
-#include "printf.h"
 
-typedef struct registerSetting_t {
-  uint16_t addr;
-  uint8_t data;
-} registerSetting_t;
+#define RADIO_BURST_ACCESS               0x40
+#define RADIO_SINGLE_ACCESS              0x00
+#define RADIO_READ_ACCESS                0x80
+#define RADIO_WRITE_ACCESS               0x00
+
+/* Bit fields in the chip status byte */
+#define STATUS_CHIP_RDYn_BM              0x80
+#define STATUS_STATE_BM                  0x70
+#define STATUS_FIFO_BYTES_AVAILABLE_BM   0x0F
+
+static rf_status_t trx_8b_reg_access(const uint8_t access_type, const uint8_t addr_byte, uint8_t * data, const uint16_t len);
+static rf_status_t trx_16b_reg_access(const uint8_t access_type, const uint8_t ext_addr, const uint8_t reg_addr, uint8_t * data, const uint8_t len);
+static void trx_read_write_burst_single(const uint8_t addr, uint8_t * data, const uint16_t len);
+
+void cc1125_spi_select_chip(void) {
+  spi_ss_low();
+}
+
+void cc1125_spi_deselect_chip(void) {
+  spi_ss_high();
+}
+
+uint32_t cc1125_spi_write(const uint8_t * buf, const uint32_t len) {
+  uint8_t status = 0;
+  for (uint32_t i = 0; i < len; i++) {
+    status = spi_write_byte(buf[i]);
+  }
+
+  return status;
+}
+
+uint32_t cc1125_spi_read(uint8_t * buf, const uint32_t len) {
+  uint8_t status = 0;
+
+    for (uint32_t i = 1; i < len; i++) {
+      buf[i] = spi_read_byte();
+    }
+
+    return status;
+}
+
+uint8_t cc1125_spi_write_read_byte(const uint8_t byte) {
+  return spi_write_byte(byte);
+}
 
 /******************************************************************************
- * VARIABLES
- */  
-// Address config = No address check 
-// Packet length = 255 
-// Modulation format = 2-GFSK 
-// PA ramping = true 
-// Packet length mode = Variable 
-// Bit rate = 0.6 
-// Deviation = 1.499176 
-// Packet bit length = 0 
-// Performance mode = High Performance 
-// Carrier frequency = 470.000000 
-// RX filter BW = 7.812500 
-// Manchester enable = false 
-// Symbol rate = 0.6 
-// TX power = 15 
-// Device address = 0 
-// Whitening = false 
-static const registerSetting_t preferredSettings470[]= {
-  {CC112X_IOCFG3,            0xB0},
-  {CC112X_IOCFG2,            0x06},
-  {CC112X_IOCFG1,            0xB0},
-  {CC112X_IOCFG0,            0x40},
-  {CC112X_SYNC_CFG1,         0x08},
-  {CC112X_DEVIATION_M,       0x89},
-  {CC112X_MODCFG_DEV_E,      0x09},
-  {CC112X_DCFILT_CFG,        0x1C},
-  {CC112X_IQIC,              0xC6},
-  {CC112X_CHAN_BW,           0x50},
-  {CC112X_SYMBOL_RATE2,      0x33},
-  {CC112X_AGC_REF,           0x20},
-  {CC112X_AGC_CS_THR,        0x19},
-  {CC112X_AGC_CFG1,          0xA9},
-  {CC112X_AGC_CFG0,          0xCF},
-  {CC112X_FIFO_CFG,          0x00},
-  {CC112X_SETTLING_CFG,      0x03},
-  {CC112X_FS_CFG,            0x14},
-  {CC112X_PKT_CFG0,          0x20},
-  {CC112X_PA_CFG0,           0x7E},
-  {CC112X_PKT_LEN,           0xFF},
-  {CC112X_IF_MIX_CFG,        0x00},
-  {CC112X_FREQOFF_CFG,       0x30},
-  {CC112X_FREQ2,             0x75},
-  {CC112X_FREQ1,             0x80},
-  {CC112X_FS_DIG1,           0x00},
-  {CC112X_FS_DIG0,           0x5F},
-  {CC112X_FS_CAL1,           0x40},
-  {CC112X_FS_CAL0,           0x0E},
-  {CC112X_FS_DIVTWO,         0x03},
-  {CC112X_FS_DSM0,           0x33},
-  {CC112X_FS_DVC0,           0x17},
-  {CC112X_FS_PFD,            0x50},
-  {CC112X_FS_PRE,            0x6E},
-  {CC112X_FS_REG_DIV_CML,    0x14},
-  {CC112X_FS_SPARE,          0xAC},
-  {CC112X_FS_VCO0,           0xB4},
-  {CC112X_LNA,               0x03},
-  {CC112X_XOSC5,             0x0E},
-  {CC112X_XOSC1,             0x03},
-};
-
-// command strobe from 0x30 to 0x3D
-void cc1125_send_command_strobe(uint8_t cmd) {
-  printf("in cc1125_command_strobe %x\r\n", cmd);
-  /* spi_write_byte(cmd); */
-};
-
-void cc1125_send_byte(uint16_t addr, uint8_t data) {
-  printf("in cc1125_send_byte %x, %x\r\n", addr, data);
-  // if extended register space address
-  if (addr >> 8 == 0x2F) {
-    spi_write_byte(0x2F);
-  }
-  spi_write_byte(addr & 0xFF);
-
-  spi_write_byte(data);
+ * @fn      cc1125_get_tx_status
+ *
+ * @brief   This function transmits a No Operation Strobe (SNOP) to get the
+ *          status of the radio and the number of free bytes in the TX FIFO.
+ *
+ *          Status byte:
+ *
+ *  ---------------------------------------------------------------------------
+ *  |          |            |                                                 |
+ *  | CHIP_RDY | STATE[2:0] | FIFO_BYTES_AVAILABLE (free bytes in the TX FIFO |
+ *  |          |            |                                                 |
+ *  ---------------------------------------------------------------------------
+ *
+ *
+ * input parameters
+ *
+ * @param   none
+ *
+ * output parameters
+ *
+ * @return  rf_status_t
+ *
+ */
+rf_status_t cc1125_get_tx_status(void)
+{
+  return cc1125_spi_cmd_strobe(CC1125_SNOP);
 }
 
-uint8_t cc1125_read_reg(uint16_t addr) {
-  printf("in cc1125_read_reg %x\r\n", addr);
-  if (addr >> 8 == 0x2F) {
-    spi_write_byte(0x2F);
-  }
-  spi_write_byte(addr & 0xFF);
 
-  return spi_read_byte();
+/******************************************************************************
+ *
+ *  @fn       cc1125_get_rx_status
+ *
+ *  @brief
+ *            This function transmits a No Operation Strobe (SNOP) with the
+ *            read bit set to get the status of the radio and the number of
+ *            available bytes in the RXFIFO.
+ *
+ *            Status byte:
+ *
+ *  --------------------------------------------------------------------------------
+ *  |          |            |                                                      |
+ *  | CHIP_RDY | STATE[2:0] | FIFO_BYTES_AVAILABLE (available bytes in the RX FIFO |
+ *  |          |            |                                                      |
+ *  --------------------------------------------------------------------------------
+ *
+ *
+ * input parameters
+ *
+ * @param     none
+ *
+ * output parameters
+ *
+ * @return    rf_status_t
+ *
+ */
+rf_status_t cc1125_get_rx_status(void)
+{
+  return cc1125_spi_cmd_strobe(CC1125_SNOP|RADIO_READ_ACCESS);
 }
 
-void cc1125_config_regs(void) {
-  printf("in cc1125_config_regs\r\n");
-  /* cc1125_send_command_strobe(CC112X_SRES); */
-  cc1125_send_command_strobe(0x5A);
-  /* for(uint16_t i = 0; */
-  /*     /\* i < (sizeof(preferredSettings470)/sizeof(registerSetting_t)); *\/ */
-  /*     i < 40; */
-  /*     i++) { */
-  /*   cc1125_send_byte(preferredSettings470[i].addr, */
-  /*                    preferredSettings470[i].data); */
-  /*   printf("wrote byte: %x, %x\r\n", preferredSettings470[i].addr, */
-  /*                                    preferredSettings470[i].data); */
-  /* } */
+
+/*******************************************************************************
+ * @fn          cc1125_spi_cmd_strobe
+ *
+ * @brief       Send command strobe to the radio. Returns status byte read
+ *              during transfer of command strobe. Validation of provided
+ *              is not done. Function assumes chip is ready.
+ *
+ * input parameters
+ *
+ * @param       cmd - command strobe
+ *
+ * output parameters
+ *
+ * @return      status byte
+ */
+rf_status_t cc1125_spi_cmd_strobe(const uint8_t cmd)
+{
+  uint8_t status;
+
+  cc1125_spi_select_chip();
+
+  status = cc1125_spi_write_read_byte(cmd);
+
+  cc1125_spi_deselect_chip();
+
+#if CC1121x_DEBUG == 1
+  cc1125_debug(RF_WRITE_CMD, cmd, status);
+#endif
+
+  return status;
 }
 
-#define VCDAC_START_OFFSET 2
-#define FS_VCO2_INDEX 0
-#define FS_VCO4_INDEX 1
-#define FS_CHP_INDEX 2
-void cc1125_manual_calibrate(void) {
-  uint8_t original_fs_cal2;
-  uint8_t calResults_for_vcdac_start_high[3];
-  uint8_t calResults_for_vcdac_start_mid[3];
-  uint8_t marcstate;
 
-  // 1) Set VCO cap-array to 0 (FS_VCO2 = 0x00)
-  cc1125_send_byte(CC112X_FS_VCO2, 0x00);
+/******************************************************************************
+ * @fn          cc1125_spi_read_reg
+ *
+ * @brief       Read value(s) from config/status/extended radio register(s).
+ *              If len  = 1: Reads a single register
+ *              if len != 1: Reads len register values in burst mode 
+ *
+ * input parameters
+ *
+ * @param       addr - address of first register to read
+ * @param       data - pointer to data array where read bytes are saved
+ * @param       len  - number of bytes to read
+ *
+ * output parameters
+ *
+ * @return      rf_status_t
+ */
+rf_status_t cc1125_spi_read_reg(const uint16_t addr, uint8_t * data, const uint8_t len)
+{
+  uint8_t temp_ext;
+  uint8_t temp_addr;
+  uint8_t rc;
 
-  // 2) Start with high VCDAC (original VCDAC_START + 2):
-  original_fs_cal2 = cc1125_read_reg(CC112X_FS_CAL2);
-  cc1125_send_byte(CC112X_FS_CAL2, original_fs_cal2 + VCDAC_START_OFFSET);
+  rc = 0;
+  temp_ext  = (uint8_t)(addr >> 8);
+  temp_addr = (uint8_t)(addr & 0x00FF);
 
-  // 3) Calibrate and wait for calibration to be done
-  //   (radio back in IDLE state)
-  cc1125_send_command_strobe(CC112X_SCAL);
-
-  do {
-    marcstate = cc1125_read_reg(CC112X_MARCSTATE);
-  } while (marcstate != 0x41);
-
-  // 4) Read FS_VCO2, FS_VCO4 and FS_CHP register obtained with 
-  //    high VCDAC_START value
-  calResults_for_vcdac_start_high[FS_VCO2_INDEX] = cc1125_read_reg(CC112X_FS_VCO2);
-  calResults_for_vcdac_start_high[FS_VCO4_INDEX] = cc1125_read_reg(CC112X_FS_VCO4);
-  calResults_for_vcdac_start_high[FS_CHP_INDEX] = cc1125_read_reg(CC112X_FS_CHP);
-
-  // 5) Set VCO cap-array to 0 (FS_VCO2 = 0x00)
-  cc1125_send_byte(CC112X_FS_VCO2, 0x00);
-
-  // 6) Continue with mid VCDAC (original VCDAC_START):
-  cc1125_send_byte(CC112X_FS_CAL2, original_fs_cal2);
-
-  // 7) Calibrate and wait for calibration to be done
-  //   (radio back in IDLE state)
-  cc1125_send_command_strobe(CC112X_SCAL);
-
-  do {
-    marcstate = cc1125_read_reg(CC112X_MARCSTATE);
-  } while (marcstate != 0x41);
-
-  // 8) Read FS_VCO2, FS_VCO4 and FS_CHP register obtained 
-  //    with mid VCDAC_START value
-  calResults_for_vcdac_start_mid[FS_VCO2_INDEX] = cc1125_read_reg(CC112X_FS_VCO2);
-  calResults_for_vcdac_start_mid[FS_VCO4_INDEX] = cc1125_read_reg(CC112X_FS_VCO4);
-  calResults_for_vcdac_start_mid[FS_CHP_INDEX] = cc1125_read_reg(CC112X_FS_CHP);
-
-  // 9) Write back highest FS_VCO2 and corresponding FS_VCO
-  //    and FS_CHP result
-  if (calResults_for_vcdac_start_high[FS_VCO2_INDEX] >
-      calResults_for_vcdac_start_mid[FS_VCO2_INDEX]) {
-    cc1125_send_byte(CC112X_FS_VCO2, calResults_for_vcdac_start_high[FS_VCO2_INDEX]);
-    cc1125_send_byte(CC112X_FS_VCO4, calResults_for_vcdac_start_high[FS_VCO4_INDEX]);
-    cc1125_send_byte(CC112X_FS_CHP, calResults_for_vcdac_start_high[FS_CHP_INDEX]);
+  /* Checking if this is a FIFO access -> returns chip not ready */
+  if (CC1125_SINGLE_TXFIFO <= temp_addr && !temp_ext) {
+    rc = STATUS_CHIP_RDYn_BM;
   } else {
-    cc1125_send_byte(CC112X_FS_VCO2, calResults_for_vcdac_start_mid[FS_VCO2_INDEX]);
-    cc1125_send_byte(CC112X_FS_VCO4, calResults_for_vcdac_start_mid[FS_VCO4_INDEX]);
-    cc1125_send_byte(CC112X_FS_CHP, calResults_for_vcdac_start_mid[FS_CHP_INDEX]);
+
+    /* Decide what register space is accessed */
+    if (!temp_ext) {
+      rc = trx_8b_reg_access(RADIO_BURST_ACCESS|RADIO_READ_ACCESS, temp_addr, data, len);
+    } else if (temp_ext == 0x2F) {
+      rc = trx_16b_reg_access(RADIO_BURST_ACCESS|RADIO_READ_ACCESS, temp_ext, temp_addr, data, len);
+    }
   }
+
+#if CC1121x_DEBUG == 1
+  cc1125_debug(!temp_ext ? RF_READ_REG_8B : RF_READ_REG_16B, RADIO_BURST_ACCESS|RADIO_READ_ACCESS, rc);
+#endif
+
+  return rc;
 }
 
-/* void runTX(void) { */
-/*   uint8 writeByte; */
-/*   uint8 readByte; */
 
-/*   // Initialize packet buffer */
-/*   uint8 txBuffer[4] = {0}; */
+/******************************************************************************
+ * @fn          cc1125_spi_write_reg
+ *
+ * @brief       Write value(s) to config/status/extended radio register(s).
+ *              If len  = 1: Writes a single register
+ *              if len  > 1: Writes len register values in burst mode 
+ *
+ * input parameters
+ *
+ * @param       addr - address of first register to write
+ * @param       data - pointer to data array that holds bytes to be written
+ * @param       len  - number of bytes to write
+ *
+ * output parameters
+ *
+ * @return      rf_status_t
+ */
+rf_status_t cc1125_spi_write_reg(const uint16_t addr, uint8_t * data, const uint8_t len)
+{
+  uint8_t temp_ext;
+  uint8_t temp_addr;
+  uint8_t rc;
 
-/*   // Configure register settings */
-/*   registerConfig((uint8)(*pMenuTable[FREQ_BAND].pValue)); */
+  rc = 0;
+  temp_ext  = (uint8_t)(addr >> 8);
+  temp_addr = (uint8_t)(addr & 0x00FF);
+  
+  /* Checking if this is a FIFO access - returns chip not ready */
+  if (CC1125_SINGLE_TXFIFO <= temp_addr && !temp_ext) {
+    rc = STATUS_CHIP_RDYn_BM;
+  } else {
+    /* Decide what register space is accessed */
+    if (!temp_ext) {
+      rc = trx_8b_reg_access(RADIO_BURST_ACCESS|RADIO_WRITE_ACCESS, temp_addr, data, len);
+    } else if (temp_ext == 0x2F) {
+      rc = trx_16b_reg_access(RADIO_BURST_ACCESS|RADIO_WRITE_ACCESS, temp_ext, temp_addr, data, len);
+    }
+  }
 
-/*   // Write custom register settings to radio (force fixed packet length in TX) */
-/*   cc112xSpiReadReg(CC112X_PKT_CFG0, &readByte, 1); */
-/*   writeByte = (readByte & 0x9F) | 0x00; */
-/*   cc112xSpiWriteReg(CC112X_PKT_CFG0, &writeByte, 1); */
+#if CC1121x_DEBUG == 1
+  cc1125_debug(!temp_ext ? RF_WRITE_REG_8B : RF_WRITE_REG_16B, RADIO_BURST_ACCESS|RADIO_WRITE_ACCESS, rc);
+#endif
 
-/*   // Calibrate radio according to errata */
-/*   manualCalibration(); */
+  return rc;
+}
 
-/*   // Infinite loop */
-/*   while(TRUE) { */
-/*     do { */
 
-/*       txBuffer[0] = 0x55; // Dummy byte in packet 1 */
-/*       txBuffer[1] = (uint8_t)(++packetCounter >> 8); // Seq. Number in packet 2 */
-/*       txBuffer[2] = (uint8_t)(packetCounter);  */
-/*       txBuffer[3] = 0x55; */
+/*******************************************************************************
+ * @fn          cc1125_spi_write_tx_fifo
+ *
+ * @brief       Write data to radio transmit FIFO.
+ *
+ * input parameters
+ *
+ * @param       data - pointer to data array that is written to TX FIFO
+ * @param       len  - Length of data array to be written
+ *
+ * output parameters
+ *
+ * @return      rf_status_t
+ */
+rf_status_t cc1125_spi_write_tx_fifo(uint8_t * data, const uint8_t len)
+{
+  return trx_8b_reg_access(0, CC1125_BURST_TXFIFO, data, len);
+}
 
-/*       // Write both packets to TX FIFO */
-/*       cc112xSpiWriteTxFifo(txBuffer, sizeof(txBuffer)); */
 
-/*       // Reg. Config for packet 1 */
-/*       writeByte = 0x01; cc112xSpiWriteReg(CC112X_PKT_LEN,  &writeByte, 1); */
+/*******************************************************************************
+ * @fn          cc1125_spi_read_rx_fifo
+ *
+ * @brief       Reads RX FIFO values to data array
+ *
+ * input parameters
+ *
+ * @param       data - pointer to data array where RX FIFO bytes are saved
+ * @param       len  - number of bytes to read from the RX FIFO
+ *
+ * output parameters
+ *
+ * @return      rf_status_t
+ */
+rf_status_t cc1125_spi_read_rx_fifo(uint8_t * data, const uint8_t len)
+{
+  return trx_8b_reg_access(0, CC1125_BURST_RXFIFO, data, len);
+}
 
-/*       // SYNC_1 */
-/*       writeByte = 0x26; cc112xSpiWriteReg(CC112X_SYNC3, &writeByte, 1); */
-/*       writeByte = 0x33; cc112xSpiWriteReg(CC112X_SYNC2, &writeByte, 1); */
-/*       writeByte = 0xD9; cc112xSpiWriteReg(CC112X_SYNC1, &writeByte, 1); */
-/*       writeByte = 0xCC; cc112xSpiWriteReg(CC112X_SYNC0, &writeByte, 1); */
-    
-/*       // Strobe TX to send packet 1 */
-/*       //--------------------------------------------------------- */
-/*       // 0xAA 0xAA 0xAA |  0x26 0x33 0xD9 0xCC | 0x55 | CRC CRC | */
-/*       //--------------------------------------------------------- */
-/*       trxSpiCmdStrobe(CC112X_STX); */
 
-/*       // Wait for interrupt that packet has been sent. */
-/*       // (Assumes the GPIO connected to the radioRxTxISR function is */
-/*       // set to GPIOx_CFG = 0x06) */
-/*       while(packetSemaphore != ISR_ACTION_REQUIRED); */
+/*******************************************************************************
+ * @fn          trx_8b_reg_access
+ *
+ * @brief       This function performs a read or write from/to a 8bit register
+ *              address space. The function handles burst and single read/write
+ *              as specified in addrByte. Function assumes that chip is ready.
+ *
+ * input parameters
+ *
+ * @param       access_type - Specifies if this is a read or write and if it's
+ *                            a single or burst access. Bitmask made up of
+ *                            RADIO_BURST_ACCESS/RADIO_SINGLE_ACCESS/
+ *                            RADIO_WRITE_ACCESS/RADIO_READ_ACCESS.
+ * @param       addr_byte - address byte of register.
+ * @param       data      - data array
+ * @param       len       - Length of array to be read(TX)/written(RX)
+ *
+ * output parameters
+ *
+ * @return      chip status
+ */
+static rf_status_t trx_8b_reg_access(const uint8_t access_type, const uint8_t addr_byte, uint8_t * data, const uint16_t len)
+{
+  uint8_t status;
 
-/*       // Clear semaphore flag */
-/*       packetSemaphore = ISR_IDLE; */
-    
-/*       // Reg. Config for packet 2 */
-/*       writeByte = 0x03; cc112xSpiWriteReg(CC112X_PKT_LEN,  &writeByte, 1); */
-       
-/*       // SYNC_2 */
-/*       writeByte = 0x93; cc112xSpiWriteReg(CC112X_SYNC3, &writeByte, 1); */
-/*       writeByte = 0x0B; cc112xSpiWriteReg(CC112X_SYNC2, &writeByte, 1); */
-/*       writeByte = 0x51; cc112xSpiWriteReg(CC112X_SYNC1, &writeByte, 1); */
-/*       writeByte = 0xDE; cc112xSpiWriteReg(CC112X_SYNC0, &writeByte, 1); */
+  cc1125_spi_select_chip();
 
-/*       // Strobe TX to send packet 2 */
-/*       //-------------------------------------------------------------------- */
-/*       // 0xAA 0xAA 0xAA |  0x93 0x0B 0x51 0xDE | Seq. Seq. 0x55  | CRC CRC | */
-/*       //-------------------------------------------------------------------- */
-/*       trxSpiCmdStrobe(CC112X_STX); */
+  status = cc1125_spi_write_read_byte(access_type|addr_byte);
+  trx_read_write_burst_single(access_type|addr_byte, data, len);
 
-/*       // Wait for interrupt that packet has been sent. */
-/*       // (Assumes the GPIO connected to the radioRxTxISR function is */
-/*       // set to GPIOx_CFG = 0x06) */
-/*       while(packetSemaphore != ISR_ACTION_REQUIRED); */
+  cc1125_spi_deselect_chip();
 
-/*       // Clear semaphore flag */
-/*       packetSemaphore = ISR_IDLE; */
-    
-/*       updateLcdTx((int32)packetCounter); */
-    
-/*     } while (bspKeyPushed(BSP_KEY_ALL) == 0); */
+  return status;
+}
 
-/*   } */
-/* } */
+
+/******************************************************************************
+ * @fn          trx_16b_reg_access
+ *
+ * @brief       This function performs a read or write in the extended adress
+ *              space of CC1125.
+ *
+ * input parameters
+ *
+ * @param       access_type - Specifies if this is a read or write and if it's
+ *                            a single or burst access. Bitmask made up of
+ *                            RADIO_BURST_ACCESS/RADIO_SINGLE_ACCESS/
+ *                            RADIO_WRITE_ACCESS/RADIO_READ_ACCESS.
+ * @param       ext_addr - Extended register space address = 0x2F.
+ * @param       reg_addr - Register address in the extended address space.
+ * @param       data     - Pointer to data array for communication
+ * @param       len      - Length of bytes to be read/written from/to radio
+ *
+ * output parameters
+ *
+ * @return      rf_status_t
+ */
+static rf_status_t trx_16b_reg_access(const uint8_t access_type, const uint8_t ext_addr, const uint8_t reg_addr, uint8_t * data, const uint8_t len)
+{
+  uint8_t status;
+
+  cc1125_spi_select_chip();
+
+  status = cc1125_spi_write_read_byte(access_type|ext_addr);
+  cc1125_spi_write(&reg_addr, 1);
+  trx_read_write_burst_single(access_type|ext_addr, data, len);
+
+  cc1125_spi_deselect_chip();
+
+  return status;
+}
+
+/*******************************************************************************
+ * @fn          trx_read_write_burst_single
+ *
+ * @brief       When the address byte is sent to the SPI slave, the next byte
+ *              communicated is the data to be written or read. The address
+ *              byte that holds information about read/write -and single/
+ *              burst-access is provided to this function.
+ *
+ *              Depending on these two bits this function will write len bytes to
+ *              the radio in burst mode or read len bytes from the radio in burst
+ *              mode if the burst bit is set. If the burst bit is not set, only
+ *              one data byte is communicated.
+ *
+ * output parameters
+ *
+ * @return      void
+ */
+static void trx_read_write_burst_single(const uint8_t addr, uint8_t * data, const uint16_t len)
+{
+  if(addr & RADIO_READ_ACCESS) {
+    cc1125_spi_read(data, len);
+  } else {
+    cc1125_spi_write(data, len);
+  }
+}

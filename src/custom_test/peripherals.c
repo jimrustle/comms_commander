@@ -1,3 +1,6 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 
 #ifndef USE_FULL_LL_DRIVER
 #define USE_FULL_LL_DRIVER
@@ -54,8 +57,8 @@ void config_system_clocks(void) {
                             LL_IOP_GRP1_PERIPH_GPIOB |
                             LL_IOP_GRP1_PERIPH_GPIOC);
 
-    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1 |
-                             LL_APB2_GRP1_PERIPH_SPI1);
+    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1);
+    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
 
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2 |
                              LL_APB1_GRP1_PERIPH_TIM2);
@@ -97,19 +100,6 @@ void config_gpio(void) {
     // | PC13 | MCU_Alive       | Connected as current source to heartbeat LED
     LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_13, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_13, LL_GPIO_OUTPUT_PUSHPULL);
-
-    // set up peripherals - alternate pin functions are on page 45/136
-    // of DM00141136 - STM32L071x8 datasheet
-    //   - SPI for CC1125 - SPI1 on PA4/5/6/7
-    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_4, LL_GPIO_MODE_ALTERNATE);
-    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ALTERNATE);
-    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
-    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE);
-
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_4, LL_GPIO_AF_0);  // SPI1_NSS
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_0);  // SPI1_SCK
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_6, LL_GPIO_AF_0);  // SPI1_MISO
-    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_7, LL_GPIO_AF_0);  // SPI1_MOSI
 
     /*   - UART for CANSAT - USART2 on PA2/3*/
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
@@ -159,10 +149,39 @@ void config_tim2_nvic(void) {
     LL_TIM_EnableIT_UPDATE(TIM2);
 }
 
+
 void config_spi(void) {
-  LL_SPI_StructInit(&spi_init);
-  LL_SPI_Init(SPI1, &spi_init);
-  LL_SPI_Enable(SPI1);
+  // set up peripherals - alternate pin functions are on page 45/136
+  // of DM00141136 - STM32L071x8 datasheet
+  //   - SPI for CC1125 - SPI1 on PA4/5/6/7
+  /* LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_4, LL_GPIO_MODE_ALTERNATE); */
+  /* LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ALTERNATE); */
+  /* LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE); */
+  /* LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE); */
+
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_4, LL_GPIO_MODE_OUTPUT);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_OUTPUT);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_OUTPUT);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_OUTPUT);
+
+  LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_4, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_5, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL);
+  LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_7, LL_GPIO_OUTPUT_PUSHPULL);
+
+  /* LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_4, LL_GPIO_AF_0);  // SPI1_NSS */
+  /* LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_0);  // SPI1_SCK */
+  /* LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_6, LL_GPIO_AF_0);  // SPI1_MISO */
+  /* LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_7, LL_GPIO_AF_0);  // SPI1_MOSI */
+
+  /* LL_SPI_StructInit(&spi_init); */
+  /* LL_SPI_Init(SPI1, &spi_init); */
+
+  /* LL_SPI_Enable(SPI1); */
+
+  /* LL_SPI_SetStandard(SPI1, LL_SPI_PROTOCOL_MOTOROLA); */
+  /* LL_SPI_SetTransferDirection(SPI1, LL_SPI_FULL_DUPLEX); */
+  /* LL_SPI_SetNSSMode(SPI1, LL_SPI_NSS_HARD_OUTPUT); */
 
   /* LL_TIM_EnableIT_UPDATE(TIM2); */
 }

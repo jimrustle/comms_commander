@@ -1,3 +1,6 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 #include "printf.h"
 
 /*
@@ -21,12 +24,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 void printchar(char **str, int c)
 {
-    extern int putchar(int c);
+    extern void putchar(char c);
     if (str) {
         **str = c;
         ++(*str);
     }
-    else (void)putchar(c);
+    else putchar(c);
 }
 
 #define PAD_RIGHT 1

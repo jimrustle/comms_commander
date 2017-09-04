@@ -1,5 +1,6 @@
 TARGET := comms_command
-OBJECTS := $(TARGET).o startup.o vectors.o printf.o print_queue.o peripherals.o radio.o command.o radio_cc1125.o spi.o system_stm32l0xx.o stm32l0xx_hal_cortex.o stm32l0xx_ll_utils.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o stm32l0xx_ll_tim.o stm32l0xx_ll_spi.o
+OBJECTS := $(TARGET).o startup.o vectors.o log.o printf.o print_queue.o peripherals.o radio.o command.o radio_cc1125.o spi.o system_stm32l0xx.o stm32l0xx_hal_cortex.o stm32l0xx_ll_utils.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o stm32l0xx_ll_tim.o stm32l0xx_ll_spi.o
+PREPROCS := $(OBJECTS:.o=.i)
 
 RAM_START := 0x8000000
 
@@ -14,9 +15,8 @@ OBJDUMP := $(ARCH)-objdump
 SIZE    := $(ARCH)-size
 GDB		:= $(ARCH)-gdb
 
-OPT		:= -ggdb -Os $(MCU) -msoft-float -DSTM32L0 -DUSE_FULL_LL_DRIVER -I../../libs/stm32l0_low_level/stm32l0_ll
+OPT		:= -ggdb -Os -msoft-float -DSTM32L0 -DUSE_FULL_LL_DRIVER -I../../libs/stm32l0_low_level/stm32l0_ll
 CSTD	:= -std=c11
-
 
 CFLAGS	+= $(OPT) $(CSTD) #-pedantic
 CFLAGS	+= -Wall -Wextra -Wshadow -Wimplicit-function-declaration -Werror
@@ -42,7 +42,10 @@ all: $(TARGET).elf
 %.o: %.c
 	$(CC) $(MCU) $(CFLAGS) -c -o $@ $<
 
-$(TARGET).elf: $(OBJECTS)
+%.i: %.c
+	$(CC) $(MCU) $(CFLAGS) -c -E -o $@ $<
+
+$(TARGET).elf: $(OBJECTS) $(PREPROCS)
 	$(LD) $(MCU) $(LDFLAGS) $(LDLIBS) $(OBJECTS) -o $(TARGET).elf
 	$(OBJCOPY) -O ihex $(TARGET).elf $(TARGET).hex
 	$(OBJDUMP) -d $(TARGET).elf > $(TARGET).lst
@@ -57,8 +60,19 @@ debug_telnet: $(TARGET).elf
 dump: $(TARGET).elf
 	cat $(TARGET).lst
 
+check: $(PREPROCS)
+	@# check using pvs-studio
+	pvs-studio-analyzer trace -- make
+	pvs-studio-analyzer analyze --compiler=arm-none-eabi-gcc
+	plog-converter -a GA:1,2 -t tasklist -o report.tasks PVS-Studio.log
+	@# check using clang
+	scan-build-3.7 --use-cc arm-none-eabi-gcc make
+	@# check using frama-c
+	frama-c -slevel 10 -val -metrics -inout $(PREPROCS) > frama-c_out
+	@# check using splint
+
 clean:
-	rm $(TARGET).lst $(TARGET).elf $(OBJECTS) $(TARGET).map
+	rm $(TARGET).lst $(TARGET).elf $(OBJECTS) $(PREPROCS) $(TARGET).map
 
 upload_oo: $(TARGET).elf
 	echo "flash write_image erase '$(TARGET).hex'" | telnet localhost 4444
