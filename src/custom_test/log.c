@@ -3,36 +3,35 @@
 
 #include "log.h"
 
-void pr_hex_digit(uint8_t h);
-
-void pr_ch(char ch) {
-  extern void putchar(char c);
-  putchar(ch);
-}
-
-void pr_str(const char * str) {
-  const char *c = str;
-  while (*c) {
-      pr_ch(*c++);
-  }
-}
-
 // single-digit hex
-void pr_hex_digit(uint8_t h) {
+void pr_hex_digit(usart_num u, uint8_t h);
+void pr_hex_digit(usart_num u, uint8_t h) {
   // get lower nibble
   h &= 0xF;
   // if > 9, convert to letter in ASCII
   if (h > 9) h += 7;
-  pr_ch(h + '0');
+  pr_ch(u, h + '0');
+}
+
+void pr_ch(usart_num u, char ch) {
+  extern void putchar(usart_num u, char c);
+  putchar(u, ch);
+}
+
+void pr_str(usart_num u, const char * str) {
+  const char *c = str;
+  while (*c) {
+    pr_ch(u, *c++);
+  }
 }
 
 // two-digit hex
-void pr_hex(uint8_t hex) {
-  pr_hex_digit(hex >> 4);
-  pr_hex_digit(hex);
+void pr_hex(usart_num u, uint8_t hex) {
+  pr_hex_digit(u, hex >> 4);
+  pr_hex_digit(u, hex);
 }
 
-void pr_nl(void) {
-  pr_ch('\r');
-  pr_ch('\n');
+void pr_nl(usart_num u) {
+  pr_ch(u, '\r');
+  pr_ch(u, '\n');
 }

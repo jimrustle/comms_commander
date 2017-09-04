@@ -28,6 +28,7 @@
 
 volatile uint8_t delay = 0;
 static queue_t usart1_queue;
+static queue_t usart2_queue;
 
 void error_catch(void);
 void error_catch(void) {
@@ -52,13 +53,14 @@ int main(void) {
   config_spi();
 
   queue_init(&usart1_queue);
+  queue_init(&usart2_queue);
 
   radio_CC1125_power_on();
 
   while (1) {
     //pr_str("hello world");
-      // goodnight sweet prince
-      __WFI();
+    // goodnight sweet prince
+    __WFI();
   }
 
   return 0;
@@ -66,10 +68,15 @@ int main(void) {
 
 // 2018-04-08 FIXME: implement DMA for UART transmission
 // putchar loads a circular buffer with characters to transmit (print_queue.c)
-void putchar(char c);
-void putchar(char c) {
-  queue_add_char(&usart1_queue, c);
-  LL_USART_EnableIT_TXE(USART1);
+void putchar(usart_num u, char c);
+void putchar(usart_num u, char c) {
+  if (u == USART_1) {
+    queue_add_char(&usart1_queue, c);
+    LL_USART_EnableIT_TXE(USART1);
+  } else {
+    queue_add_char(&usart2_queue, c);
+    LL_USART_EnableIT_TXE(USART2);
+  }
 }
 
 // interrupt handlers
@@ -98,7 +105,7 @@ void USART1_IRQHandler() {
       queue_add_char(&usart1_queue, '\n');
     }
     else {
-      pr_ch(c);
+      pr_ch(USART_1, c);
     }
   }
 
@@ -114,7 +121,26 @@ void USART1_IRQHandler() {
     LL_USART_DisableIT_TXE(USART1);
   }
   /* __enable_irq(); */
- }
+}
+
+void USART2_IRQHandler(void);
+void USART2_IRQHandler() {
+  /* __disable_irq(); */
+  // usart2 doesn't receive anything from the Stensat CANSAT
+
+  // transmit
+  if (LL_USART_IsEnabledIT_TXE(USART2) && LL_USART_IsActiveFlag_TXE(USART2)) {
+    if (queue_is_empty(&usart2_queue)) {
+      LL_USART_DisableIT_TXE(USART2);
+    } else {
+      // TXE flag cleared by writing to USART2 data register
+      LL_USART_TransmitData8(USART2, queue_rem_char(&usart2_queue));
+    }
+  } else {
+    LL_USART_DisableIT_TXE(USART2);
+  }
+  /* __enable_irq(); */
+}
 
 // fstack-protector
 uintptr_t __stack_chk_guard = 0xdeadbeef;

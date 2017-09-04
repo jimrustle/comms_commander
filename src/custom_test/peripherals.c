@@ -42,6 +42,7 @@ LL_TIM_InitTypeDef tim_init;
 
 LL_SPI_InitTypeDef spi_init;
 
+// 2018-08-04 FIXME: use external clock instead of internal oscillator
 void config_system_clocks(void) {
     // set up clocks - OSC_IN and OSC_OUT on PH0 and PH1,
     // HSE input clock is 14.7456 MHz
@@ -149,7 +150,7 @@ void config_tim2_nvic(void) {
     LL_TIM_EnableIT_UPDATE(TIM2);
 }
 
-
+// 2017-08-04 FIXME: use hardware SPI
 void config_spi(void) {
   // set up peripherals - alternate pin functions are on page 45/136
   // of DM00141136 - STM32L071x8 datasheet

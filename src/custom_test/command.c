@@ -46,12 +46,12 @@ void add_c(char c) {
         for (uint8_t i = 0; i < sizeof(command_table)/sizeof(command_t); i++) {
             if (strcmp(command_buf, command_table[i].command) == 0) {
                 command_table[i].command_func();
-                pr_nl(); pr_str("ok.");
+                pr_nl(USART_1); pr_str(USART_1, "ok.");
                 break;
             }
         }
 
-        pr_nl();
+        pr_nl(USART_1);
 
         buf_idx = 0;
     }

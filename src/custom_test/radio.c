@@ -115,7 +115,7 @@ static void cc1125_command_strobe(uint8_t command) {
     spi_write_byte(command);
     spi_ss_high();
   } else {
-    pr_str("command strobe failed: "); pr_hex(command); pr_nl();
+    pr_str(USART_1, "command strobe failed: "); pr_hex(USART_1, command); pr_nl(USART_1);
 
     error_catch();
   }
@@ -138,11 +138,11 @@ void radio_CC1125_power_off(void) {
 
 void radio_CC1125_get_status(void) {
   // get status by reading status byte from NOP command strobe
-  pr_hex(cc1125_read_byte(CC1125_SNOP)); pr_ch(' ');
+  pr_hex(USART_1, cc1125_read_byte(CC1125_SNOP)); pr_ch(USART_1, ' ');
 
-  pr_hex(cc1125_read_byte(CC1125_MODEM_STATUS0)); pr_ch(' ');
+  pr_hex(USART_1, cc1125_read_byte(CC1125_MODEM_STATUS0)); pr_ch(USART_1, ' ');
 
-  pr_hex(cc1125_read_byte(CC1125_NUM_TXBYTES)); pr_nl();
+  pr_hex(USART_1, cc1125_read_byte(CC1125_NUM_TXBYTES)); pr_nl(USART_1);
 
   // direct fifo debug
   for (uint8_t i = 0; i < 7; i++) {
@@ -152,7 +152,7 @@ void radio_CC1125_get_status(void) {
     uint8_t ret = spi_write_byte(0x00);
     spi_ss_high();
 
-    pr_hex(i); pr_str(": "); pr_hex(ret); pr_nl();
+    pr_hex(USART_1, i); pr_str(USART_1, ": "); pr_hex(USART_1, ret); pr_nl(USART_1);
   }
 }
 
@@ -165,10 +165,11 @@ void radio_CC1125_config_radio(void) {
     uint8_t check = cc1125_read_byte(preferredSettings[i].addr);
 
     if (check != preferredSettings[i].data) {
-      pr_hex(preferredSettings[i].addr); pr_str(" ");
-      pr_hex(preferredSettings[i].data); pr_str(" "); pr_hex(check); pr_nl();
+      pr_hex(USART_1, preferredSettings[i].addr); pr_str(USART_1, " ");
+      pr_hex(USART_1, preferredSettings[i].data); pr_str(USART_1, " ");
+      pr_hex(USART_1, check); pr_nl(USART_1);
 
-      pr_str("config failed."); pr_nl();
+      pr_str(USART_1, "config failed."); pr_nl(USART_1);
       error_catch();
     }
   }
@@ -211,6 +212,56 @@ void radio_CANSAT_power_on(void) {
 
 void radio_CANSAT_power_off(void) {
     LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_4);
+}
+
+void radio_CANSAT_init_callsigns(void) {
+  pr_str(USART_2, "CNEUDOSE\r");
+  /* pr_str(USART_2, "DCQ\r"); */
+  /* pr_str(USART_2, "VTELEM\r"); */
+}
+
+void radio_CANSAT_send_data(uint8_t * data, uint8_t len) {
+  /* static const char* check_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="; */
+  // len is max of 200
+  len = (len > 200) ? 200 : len;
+
+  // ensure all ascii
+  for (uint8_t i = 0; i < len; i++) {
+    char c = data[i];
+
+    if (!((('A' <= c) && (c <= 'Z')) ||
+          (('a' <= c) && (c <= 'z')) ||
+          (('0' <= c) && (c <= '9')) ||
+          (c == '+') ||
+          (c == '/') ||
+          (c == '='))) {
+      error_catch();
+    }
+  }
+
+  // transmit
+  pr_ch(USART_2, 'S');
+  for (uint8_t i = 0; i < len; i++) {
+    pr_ch(USART_2, data[i]);
+  }
+  pr_ch(USART_2, '\r');
+}
+
+void radio_CANSAT_set_freq(void) {
+  // wow, it does absolutely nothing!
+}
+
+void radio_CANSAT_set_baud(CANSAT_baud_t baud) {
+  switch (baud) {
+    case M1200_AFSK: {
+      pr_str(USART_2, "M1200\r");
+      break;
+    }
+    case M9600_FSK: {
+      pr_str(USART_2, "M9600\r");
+      break;
+    }
+  }
 }
 
 /***************************************************/
