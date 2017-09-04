@@ -2,7 +2,6 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 #include "spi.h"
-#include "printf.h"
 #include "peripherals.h"
 
 uint8_t spi_write_byte(uint8_t data) {

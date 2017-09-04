@@ -1,7 +1,6 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
-
 /*
  * S
  * CCC
@@ -16,7 +15,6 @@
 #include "spi.h"
 #include "log.h"
 
-extern volatile bool pause_flag;
 extern void error_catch(void);
 
 typedef struct registerSetting_t {
@@ -78,22 +76,8 @@ static const registerSetting_t preferredSettings[]= {
   {CC1125_XOSC1,             0x07},
 };
 
-
-// CC1125
-// | Pin  | Pin Name        | Description
-// | PA0  | CC1125_Enable   | Enables power switch to CC1125
-// | PB0  | CC1125_Tx_or_Rx | Switches Rx and Tx chain (0 = Rx, 1 = Tx)
-
-void radio_CC1125_power_on(void) {
-    LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_1);
-}
-
-void radio_CC1125_power_off(void) {
-    LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_1);
-}
-
-void radio_CC1125_write_byte(uint16_t addr, uint8_t data);
-void radio_CC1125_write_byte(uint16_t addr, uint8_t data) {
+static void cc1125_write_byte(uint16_t addr, uint8_t data);
+static void cc1125_write_byte(uint16_t addr, uint8_t data) {
   spi_ss_low();
   // check extended byte
   if ((addr & 0xFF00) == 0x2F00) {
@@ -105,8 +89,8 @@ void radio_CC1125_write_byte(uint16_t addr, uint8_t data) {
   spi_ss_high();
 }
 
-uint8_t radio_CC1125_read_byte(uint16_t addr);
-uint8_t radio_CC1125_read_byte(uint16_t addr) {
+static uint8_t cc1125_read_byte(uint16_t addr);
+static uint8_t cc1125_read_byte(uint16_t addr) {
   uint8_t ret = 0;
 
   spi_ss_low();
@@ -124,8 +108,8 @@ uint8_t radio_CC1125_read_byte(uint16_t addr) {
   return ret;
 }
 
-void radio_CC1125_send_command_strobe(uint8_t);
-void radio_CC1125_send_command_strobe(uint8_t command) {
+static void cc1125_command_strobe(uint8_t);
+static void cc1125_command_strobe(uint8_t command) {
   if ((0x30 <= command) && (command <= 0x3D)) {
     spi_ss_low();
     spi_write_byte(command);
@@ -137,14 +121,28 @@ void radio_CC1125_send_command_strobe(uint8_t command) {
   }
 }
 
-//uint8_t radio_CC1125_get_status(void) {
+/***************************************************/
+
+// CC1125
+// | Pin  | Pin Name        | Description
+// | PA0  | CC1125_Enable   | Enables power switch to CC1125
+// | PB0  | CC1125_Tx_or_Rx | Switches Rx and Tx chain (0 = Rx, 1 = Tx)
+
+void radio_CC1125_power_on(void) {
+    LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_1);
+}
+
+void radio_CC1125_power_off(void) {
+    LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_1);
+}
+
 void radio_CC1125_get_status(void) {
   // get status by reading status byte from NOP command strobe
-  pr_hex(radio_CC1125_read_byte(CC1125_SNOP)); pr_ch(' ');
+  pr_hex(cc1125_read_byte(CC1125_SNOP)); pr_ch(' ');
 
-  pr_hex(radio_CC1125_read_byte(CC1125_MODEM_STATUS0)); pr_ch(' ');
+  pr_hex(cc1125_read_byte(CC1125_MODEM_STATUS0)); pr_ch(' ');
 
-  pr_hex(radio_CC1125_read_byte(CC1125_NUM_TXBYTES)); pr_nl();
+  pr_hex(cc1125_read_byte(CC1125_NUM_TXBYTES)); pr_nl();
 
   // direct fifo debug
   for (uint8_t i = 0; i < 7; i++) {
@@ -158,13 +156,13 @@ void radio_CC1125_get_status(void) {
   }
 }
 
+// configure radio using the preferred settings (generated from SmartRF Studio)
 void radio_CC1125_config_radio(void) {
-  // config radio
   for (uint8_t i = 0; i < sizeof(preferredSettings)/sizeof(registerSetting_t); i++) {
-    radio_CC1125_write_byte(preferredSettings[i].addr,
-                            preferredSettings[i].data);
+    cc1125_write_byte(preferredSettings[i].addr,
+                      preferredSettings[i].data);
 
-    uint8_t check = radio_CC1125_read_byte(preferredSettings[i].addr);
+    uint8_t check = cc1125_read_byte(preferredSettings[i].addr);
 
     if (check != preferredSettings[i].data) {
       pr_hex(preferredSettings[i].addr); pr_str(" ");
@@ -174,28 +172,35 @@ void radio_CC1125_config_radio(void) {
       error_catch();
     }
   }
-
 }
 
+// enable tx mode - should be called only after filling the TX FIFO
+// (check using polling, for now)
 void radio_CC1125_enable_TX(void) {
-  radio_CC1125_send_command_strobe(CC1125_SFSTXON);
-  radio_CC1125_send_command_strobe(CC1125_STX);
+  cc1125_command_strobe(CC1125_SFSTXON);
+  cc1125_command_strobe(CC1125_STX);
 }
 
+// enable rx mode - should be called only after filling the RX FIFO
+// (check using polling, for now)
 void radio_CC1125_enable_RX(void) {
-  radio_CC1125_send_command_strobe(CC1125_SFSTXON);
-  radio_CC1125_send_command_strobe(CC1125_SRX);
+  cc1125_command_strobe(CC1125_SFSTXON);
+  cc1125_command_strobe(CC1125_SRX);
 }
 
+// an ever-changing function for debugging
+// current usage: fill out TX FIFO
 void radio_CC1125_test(void) {
-  radio_CC1125_write_byte(0x3F, 'N');
-  radio_CC1125_write_byte(0x3F, 'E');
-  radio_CC1125_write_byte(0x3F, 'U');
-  radio_CC1125_write_byte(0x3F, 'D');
-  radio_CC1125_write_byte(0x3F, 'O');
-  radio_CC1125_write_byte(0x3F, 'S');
-  radio_CC1125_write_byte(0x3F, 'E');
+  cc1125_write_byte(0x3F, 'N');
+  cc1125_write_byte(0x3F, 'E');
+  cc1125_write_byte(0x3F, 'U');
+  cc1125_write_byte(0x3F, 'D');
+  cc1125_write_byte(0x3F, 'O');
+  cc1125_write_byte(0x3F, 'S');
+  cc1125_write_byte(0x3F, 'E');
 }
+
+/***************************************************/
 
 // CANSAT
 // | PB4  | CANSAT_Enable   | Enables power switch to CANSAT
@@ -208,6 +213,8 @@ void radio_CANSAT_power_off(void) {
     LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_4);
 }
 
+/***************************************************/
+
 // Power Amplifier - Mitsubishi RA07M4047M
 // | PA15 | PA_Enable       | Enables (logic to the gate of) power amplifier
 
@@ -218,6 +225,8 @@ void radio_PA_power_on(void) {
 void radio_PA_power_off(void) {
     LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_15);
 }
+
+/***************************************************/
 
 // MCU
 void radio_LED_on(void) {

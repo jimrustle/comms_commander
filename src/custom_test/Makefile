@@ -1,5 +1,5 @@
 TARGET := comms_command
-OBJECTS := $(TARGET).o startup.o vectors.o log.o printf.o print_queue.o peripherals.o radio.o command.o radio_cc1125.o spi.o system_stm32l0xx.o stm32l0xx_hal_cortex.o stm32l0xx_ll_utils.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o stm32l0xx_ll_tim.o stm32l0xx_ll_spi.o
+OBJECTS := $(TARGET).o startup.o vectors.o log.o print_queue.o peripherals.o radio.o command.o radio_cc1125.o spi.o system_stm32l0xx.o stm32l0xx_hal_cortex.o stm32l0xx_ll_utils.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o stm32l0xx_ll_tim.o stm32l0xx_ll_spi.o
 PREPROCS := $(OBJECTS:.o=.i)
 
 RAM_START := 0x8000000

@@ -20,7 +20,6 @@
 
 #include "command.h"
 #include "peripherals.h"
-#include "printf.h"
 #include "print_queue.h"
 #include "radio.h"
 #include "radio_cc1125.h"
