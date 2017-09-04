@@ -1,40 +1,41 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
-
 // character queue for buffering transmits over UART
-// 2018-08-04 FIXME: change buffer length to reasonable, 'justified' size
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "print_queue.h"
 
-#define BUFFER_LEN 512
+void queue_init(queue_t * q) {
+  q->head = 0;
+  q->tail = 0;
+  q->n_elements = 0;
 
-char char_buf[BUFFER_LEN] = {0};
-int head = 0;
-int tail = 0;
-int n_elements = 0;
+  for (uint8_t i = 0; i < BUFFER_LEN; i++) {
+    q->char_buf[i] = 0;
+  }
+}
 
-void pq_add_char(char c) {
-    if (n_elements < BUFFER_LEN) {
-        char_buf[tail++] = c;
-        tail %= BUFFER_LEN;
-        n_elements++;
+void queue_add_char(queue_t * q, char c) {
+    if (q->n_elements < BUFFER_LEN) {
+        q->char_buf[q->tail++] = c;
+        q->tail %= BUFFER_LEN;
+        q->n_elements++;
     }
 }
 
-bool pq_is_empty(void){
-  return n_elements == 0;
-    /* return head == tail; */
+bool queue_is_empty(queue_t * q){
+  return q->n_elements == 0;
 }
 
-char pq_rem_char(void) {
-    if (n_elements > 0) {
-        char c = char_buf[head];
-        char_buf[head++] = 0;
-        head %= BUFFER_LEN;
-        n_elements--;
+char queue_rem_char(queue_t * q) {
+    if (q->n_elements > 0) {
+        char c = q->char_buf[q->head];
+        q->char_buf[q->head++] = 0;
+        q->head %= BUFFER_LEN;
+        q->n_elements--;
         return c;
     }
 

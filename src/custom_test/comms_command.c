@@ -27,6 +27,7 @@
 #include "log.h"
 
 volatile uint8_t delay = 0;
+static queue_t usart1_queue;
 
 void error_catch(void);
 void error_catch(void) {
@@ -50,6 +51,8 @@ int main(void) {
   config_tim2_nvic();
   config_spi();
 
+  queue_init(&usart1_queue);
+
   radio_CC1125_power_on();
 
   while (1) {
@@ -65,7 +68,7 @@ int main(void) {
 // putchar loads a circular buffer with characters to transmit (print_queue.c)
 void putchar(char c);
 void putchar(char c) {
-  pq_add_char(c);
+  queue_add_char(&usart1_queue, c);
   LL_USART_EnableIT_TXE(USART1);
 }
 
@@ -91,8 +94,8 @@ void USART1_IRQHandler() {
 
     // echo char to serial
     if (c == '\r') {
-      pq_add_char('\r');
-      pq_add_char('\n');
+      queue_add_char(&usart1_queue, '\r');
+      queue_add_char(&usart1_queue, '\n');
     }
     else {
       pr_ch(c);
@@ -101,11 +104,11 @@ void USART1_IRQHandler() {
 
   // transmit
   if (LL_USART_IsEnabledIT_TXE(USART1) && LL_USART_IsActiveFlag_TXE(USART1)) {
-    if (pq_is_empty()) {
+    if (queue_is_empty(&usart1_queue)) {
       LL_USART_DisableIT_TXE(USART1);
     } else {
       // TXE flag cleared by writing to USART1 data register
-      LL_USART_TransmitData8(USART1, pq_rem_char());
+      LL_USART_TransmitData8(USART1, queue_rem_char(&usart1_queue));
     }
   } else {
     LL_USART_DisableIT_TXE(USART1);
