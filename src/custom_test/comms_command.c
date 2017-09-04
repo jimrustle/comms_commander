@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+/* 2018-08-04 FIXME: use 14.7456 MHz crystal instead of internal oscillator */
 /*#define HSE_VALUE ((uint32_t) 14745600)*/
 #define HSE_VALUE ((uint32_t) 8000000)
 
@@ -40,7 +41,7 @@ void error_catch(void) {
 
 int main(void) {
   // enable prefetch
-  // TODO: explain why
+  // 2018-08-04 FIXME: explain why
   LL_FLASH_EnablePrefetch();
 
   config_system_clocks();
@@ -60,7 +61,7 @@ int main(void) {
   return 0;
 }
 
-// TODO: implement DMA for UART transmission
+// 2018-04-08 FIXME: implement DMA for UART transmission
 // putchar loads a circular buffer with characters to transmit (print_queue.c)
 void putchar(char c);
 void putchar(char c) {

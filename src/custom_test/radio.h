@@ -1,7 +1,4 @@
 
-// TODO: read cc1125 datasheet and implement state machine
-// from msp430 reference implementation
-
 #include<stdint.h>
 
 void radio_CC1125_power_on(void);

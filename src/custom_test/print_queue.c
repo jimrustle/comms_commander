@@ -3,7 +3,7 @@
 
 
 // character queue for buffering transmits over UART
-// TODO: change buffer length to reasonable, 'justified' size
+// 2018-08-04 FIXME: change buffer length to reasonable, 'justified' size
 
 #include <stdbool.h>
 
