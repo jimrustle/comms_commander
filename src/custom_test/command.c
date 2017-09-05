@@ -11,9 +11,11 @@ typedef struct command_t {
   void (* command_func)(void);
 } command_t;
 
+extern void error_catch(void);
 static command_t command_table[] = {
   {"CS0", radio_CANSAT_power_off},
   {"CS1", radio_CANSAT_power_on},
+  {"CST", radio_CANSAT_test},
 
   {"L0",  radio_LED_off},
   {"L1",  radio_LED_on},
@@ -29,6 +31,8 @@ static command_t command_table[] = {
 
   {"PA0", radio_PA_power_off},
   {"PA1", radio_PA_power_on},
+
+  {"K",   error_catch},
 };
 
 void add_c(char c) {

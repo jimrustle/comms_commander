@@ -56,9 +56,10 @@ int main(void) {
   queue_init(&usart2_queue);
 
   radio_CC1125_power_on();
+  radio_CANSAT_power_on();
+  radio_set_mode(RM_TRANSMIT);
 
   while (1) {
-    //pr_str("hello world");
     // goodnight sweet prince
     __WFI();
   }
@@ -87,7 +88,9 @@ void TIM2_IRQHandler() {
   if (delay > 10) {
     delay = 0;
   }
-  LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_13);
+
+  radio_LED_toggle();
+  radio_CANSAT_test();
 }
 
 void USART1_IRQHandler(void);

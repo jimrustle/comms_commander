@@ -123,6 +123,16 @@ static void cc1125_command_strobe(uint8_t command) {
 
 /***************************************************/
 
+// Tx or Rx mode
+
+void radio_set_mode(radio_mode_t mode) {
+  if (mode == RM_TRANSMIT) {
+    LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_0);
+  } else {
+    LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_0);
+  }
+}
+
 // CC1125
 // | Pin  | Pin Name        | Description
 // | PA0  | CC1125_Enable   | Enables power switch to CC1125
@@ -262,6 +272,10 @@ void radio_CANSAT_set_baud(CANSAT_baud_t baud) {
       break;
     }
   }
+}
+
+void radio_CANSAT_test(void) {
+  radio_CANSAT_send_data((uint8_t *) "NEUDOSE", 7);
 }
 
 /***************************************************/
