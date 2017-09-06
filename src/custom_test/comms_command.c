@@ -2,6 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 #include <stdbool.h>
+#include <stdnoreturn.h>
 
 /* 2018-08-04 FIXME: use 14.7456 MHz crystal instead of internal oscillator */
 /*#define HSE_VALUE ((uint32_t) 14745600)*/
@@ -30,8 +31,8 @@ volatile uint8_t delay = 0;
 static queue_t usart1_queue;
 static queue_t usart2_queue;
 
-void error_catch(void);
-void error_catch(void) {
+noreturn void error_catch(void);
+noreturn void error_catch(void) {
   __disable_irq();
   // constant LED
   LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
@@ -91,6 +92,7 @@ void TIM2_IRQHandler() {
 
   radio_LED_toggle();
   radio_CANSAT_test();
+  pr_str(USART_1, "hi");
 }
 
 void USART1_IRQHandler(void);

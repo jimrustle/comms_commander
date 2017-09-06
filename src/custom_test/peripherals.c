@@ -126,13 +126,23 @@ void config_uart(void) {
     LL_USART_StructInit(&usart_init.init);
     LL_USART_ClockStructInit(&usart_init.clock);
 
+    // usart 1 config
     LL_USART_ClockInit(USART1, &usart_init.clock);
     LL_USART_Init(USART1, &usart_init.init);
     LL_USART_Enable(USART1);
 
     HAL_NVIC_EnableIRQ(USART1_IRQn);
     HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
-    // enable rx interrupt
+
+    // usart 2 config
+    LL_USART_ClockInit(USART2, &usart_init.clock);
+    LL_USART_Init(USART2, &usart_init.init);
+    LL_USART_Enable(USART2);
+
+    HAL_NVIC_EnableIRQ(USART2_IRQn);
+    HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+
+    // enable rx interrupt for USART1
     LL_USART_EnableIT_RXNE(USART1);
 }
 
