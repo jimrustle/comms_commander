@@ -58,11 +58,14 @@ void config_system_clocks(void) {
                             LL_IOP_GRP1_PERIPH_GPIOB |
                             LL_IOP_GRP1_PERIPH_GPIOC);
 
-    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1);
-    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
+    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1 |
+                             LL_APB2_GRP1_PERIPH_SPI1);
 
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2 |
                              LL_APB1_GRP1_PERIPH_TIM2);
+
+    LL_RCC_SetUSARTClockSource(LL_RCC_USART1_CLKSOURCE_PCLK2);
+    LL_RCC_SetUSARTClockSource(LL_RCC_USART2_CLKSOURCE_PCLK1);
 }
 
 void config_gpio(void) {
@@ -70,11 +73,11 @@ void config_gpio(void) {
     // | Pin  | Pin Name        | Description
     // | ---- | --------------- | -----------------------------------------
     // | PB0  | CC1125_Tx_or_Rx | Switches Rx and Tx chain (0 = Rx, 1 = Tx)
-    // | PB4  | CANSAT_Enable   | Enables power switch to CANSAT
     LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_0, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_0, LL_GPIO_OUTPUT_PUSHPULL);
     LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_0, LL_GPIO_PULL_DOWN);
 
+    // | PB4  | CANSAT_Enable   | Enables power switch to CANSAT
     LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_4, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_4, LL_GPIO_OUTPUT_PUSHPULL);
     LL_GPIO_SetPinPull(GPIOB, LL_GPIO_PIN_4, LL_GPIO_PULL_DOWN);
@@ -82,16 +85,16 @@ void config_gpio(void) {
     // | Pin  | Pin Name        | Description
     // | ---- | --------------- | -----------------------------------------
     // | PA1  | CC1125_Enable   | Enables power switch to CC1125
-    // | PA15 | PA_Enable       | Enables (logic to the gate of) power amplifier
-    // | PA8  | N2420_Enable    | Enables power switch to N2420
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_1,  LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_1, LL_GPIO_OUTPUT_PUSHPULL);
     LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_1, LL_GPIO_PULL_DOWN);
 
+    // | PA15 | PA_Enable       | Enables (logic to the gate of) power amplifier
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_15, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_15, LL_GPIO_OUTPUT_PUSHPULL);
     LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_15, LL_GPIO_PULL_DOWN);
 
+    // | PA8  | N2420_Enable    | Enables power switch to N2420
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_8,  LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_PUSHPULL);
     LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_8, LL_GPIO_PULL_DOWN);
@@ -102,7 +105,7 @@ void config_gpio(void) {
     LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_13, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_13, LL_GPIO_OUTPUT_PUSHPULL);
 
-    /*   - UART for CANSAT - USART2 on PA2/3*/
+    /*   - UART for CANSAT - USART2 on PA2 and PA3 */
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_ALTERNATE);
 
