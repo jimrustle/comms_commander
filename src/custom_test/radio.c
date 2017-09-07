@@ -275,7 +275,7 @@ void radio_CANSAT_set_baud(CANSAT_baud_t baud) {
 }
 
 void radio_CANSAT_test(void) {
-  radio_CANSAT_send_data((uint8_t *) "NEUDOSE", 7);
+  radio_CANSAT_send_data((uint8_t *) "hi", 2);
 }
 
 /***************************************************/

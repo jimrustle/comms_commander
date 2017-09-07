@@ -27,7 +27,7 @@ uint8_t spi_write_byte(uint8_t data) {
     }
 
     // delay
-    for (volatile int j = 0; j < 600; j++);;
+    for (volatile int j = 0; j < 200; j++);;
 
     // SCK high
     LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_5);
@@ -35,7 +35,7 @@ uint8_t spi_write_byte(uint8_t data) {
     status = (status << 1) | LL_GPIO_IsInputPinSet(GPIOA, LL_GPIO_PIN_6);
 
     // delay
-    for (volatile int j = 0; j < 600; j++);;
+    for (volatile int j = 0; j < 200; j++);;
   }
   status = status | LL_GPIO_IsInputPinSet(GPIOA, LL_GPIO_PIN_6);
   /* // SS high */
@@ -66,12 +66,12 @@ uint8_t spi_read_byte(void) {
     ret = (ret | LL_GPIO_IsInputPinSet(GPIOA, LL_GPIO_PIN_6)) << 1;
 
     // delay
-    for (volatile int j = 0; j < 600; j++);;
+    for (volatile int j = 0; j < 200; j++);;
     // SCK high
     LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_5);
 
     // delay
-    for (volatile int j = 0; j < 600; j++);;
+    for (volatile int j = 0; j < 200; j++);;
   }
   ret = ret | LL_GPIO_IsInputPinSet(GPIOA, LL_GPIO_PIN_6);
   /* LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_4); */

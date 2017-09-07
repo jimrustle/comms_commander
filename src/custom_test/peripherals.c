@@ -16,6 +16,7 @@
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_hal_cortex.h"
 
 #include "peripherals.h"
+#include "assert.h"
 
 typedef struct pll_t {
     LL_UTILS_PLLInitTypeDef prescale;
@@ -23,9 +24,12 @@ typedef struct pll_t {
 } pll_t;
 
 pll_t pll_init = {
-    .prescale = {.PLLMul = LL_RCC_PLL_MUL_4, .PLLDiv = LL_RCC_PLL_DIV_2
+    // we obviously use the PLL, and set it to have no effect on the 16 MH HSI clock
+    .prescale = {.PLLMul = LL_RCC_PLL_MUL_4, .PLLDiv = LL_RCC_PLL_DIV_4
     },
-    .bus = {.AHBCLKDivider = LL_RCC_SYSCLK_DIV_1,
+    // default system clock = 16 MHz HSI, but we use the 2MHz after prescale
+    // (see stm32cube clock config chart)
+    .bus = {.AHBCLKDivider = LL_RCC_SYSCLK_DIV_8,
             .APB1CLKDivider = LL_RCC_APB1_DIV_1,
             .APB2CLKDivider = LL_RCC_APB2_DIV_1,
     }
@@ -48,7 +52,7 @@ void config_system_clocks(void) {
     // HSE input clock is 14.7456 MHz
     // set PLL as system clock, using HSE as source
     /*LL_PLL_ConfigSystemClock_HSE(HSE_VALUE, LL_UTILS_HSEBYPASS_OFF, &pll_init.prescale, &pll_init.bus);*/
-    /*LL_SetSystemCoreClock(HSE_VALUE);*/
+    LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_HSI);
 
     LL_PLL_ConfigSystemClock_HSI(&pll_init.prescale, &pll_init.bus);
     /*LL_Init1msTick(SystemCoreClock);*/
@@ -134,19 +138,30 @@ void config_uart(void) {
     LL_USART_Init(USART1, &usart_init.init);
     LL_USART_Enable(USART1);
 
-    HAL_NVIC_EnableIRQ(USART1_IRQn);
-    HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
-
     // usart 2 config
     LL_USART_ClockInit(USART2, &usart_init.clock);
     LL_USART_Init(USART2, &usart_init.init);
     LL_USART_Enable(USART2);
 
+    // enable rx interrupt for USART1
+    LL_USART_EnableIT_RXNE(USART1);
+
+    HAL_NVIC_EnableIRQ(USART1_IRQn);
+    HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
+
     HAL_NVIC_EnableIRQ(USART2_IRQn);
     HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
 
-    // enable rx interrupt for USART1
-    LL_USART_EnableIT_RXNE(USART1);
+    uint32_t usart1_periph_clk = LL_RCC_GetUSARTClockFreq(LL_RCC_USART1_CLKSOURCE);
+    uint32_t usart2_periph_clk = LL_RCC_GetUSARTClockFreq(LL_RCC_USART2_CLKSOURCE);
+
+    // there is no way to recover from this error
+    // (2017-08-07 FIXME: recover from this error)
+    assert(usart1_periph_clk == 2E6);
+    assert(usart2_periph_clk == 2E6);
+
+    LL_USART_SetBaudRate(USART1, usart1_periph_clk, LL_USART_OVERSAMPLING_16, 115200);
+    LL_USART_SetBaudRate(USART2, usart1_periph_clk, LL_USART_OVERSAMPLING_16,  38400);
 }
 
 void config_tim2_nvic(void) {
@@ -155,9 +170,14 @@ void config_tim2_nvic(void) {
 
     LL_TIM_StructInit(&tim_init);
     LL_TIM_Init(TIM2, &tim_init);
+
     LL_TIM_EnableCounter(TIM2);
-    LL_TIM_SetPrescaler(TIM2, 65535);
-    LL_TIM_SetClockDivision(TIM2, LL_TIM_CLOCKDIVISION_DIV4);
+    // The counter clock frequency CK_CNT is equal to fCK_PSC / (PSC[15:0] + 1).
+    // 2 MHz / (19999 + 1) => 100 Hz
+    LL_TIM_SetPrescaler(TIM2, 19999);
+    LL_TIM_SetClockDivision(TIM2, LL_TIM_CLOCKDIVISION_DIV1);
+    // default counter mode is to count down from autoreload value to zero
+    // therefore, tim2_nvic fires once a second
     LL_TIM_SetAutoReload(TIM2, 100);
 
     LL_TIM_EnableIT_UPDATE(TIM2);

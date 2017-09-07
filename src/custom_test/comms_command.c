@@ -6,7 +6,9 @@
 
 /* 2018-08-04 FIXME: use 14.7456 MHz crystal instead of internal oscillator */
 /*#define HSE_VALUE ((uint32_t) 14745600)*/
-#define HSE_VALUE ((uint32_t) 8000000)
+/* #define HSE_VALUE ((uint32_t) 8000000) */
+// HSE_VALUE = 16 MHz if using HSI (just go with HSE = HSI lmao 2017-08-07 FIXME)
+#define HSE_VALUE ((uint32_t) 16000000)
 
 #ifndef USE_FULL_LL_DRIVER
 #define USE_FULL_LL_DRIVER
@@ -38,16 +40,20 @@ noreturn void error_catch(void) {
   LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
 
   while (1) {
-    __asm("nop");
+    // if you can read this line in the debugger, you've made a terrible mistake
+    __asm("BKPT");
   }
 }
 
 int main(void) {
+  LL_RCC_ClocksTypeDef rcc_clocks;
+
   // enable prefetch
   // 2018-08-04 FIXME: explain why
   LL_FLASH_EnablePrefetch();
 
   config_system_clocks();
+  LL_RCC_GetSystemClocksFreq(&rcc_clocks);
   config_gpio();
   config_uart();
   config_tim2_nvic();
@@ -59,6 +65,10 @@ int main(void) {
   radio_CC1125_power_on();
   radio_CANSAT_power_on();
   radio_set_mode(RM_TRANSMIT);
+
+  LL_RCC_GetSystemClocksFreq(&rcc_clocks);
+
+  /* error_catch(); */
 
   while (1) {
     // goodnight sweet prince
@@ -92,7 +102,8 @@ void TIM2_IRQHandler() {
 
   radio_LED_toggle();
   radio_CANSAT_test();
-  pr_str(USART_1, "hi");
+  pr_hex(USART_1, delay);
+  pr_str(USART_1, " Shi\r\n");
 }
 
 void USART1_IRQHandler(void);
