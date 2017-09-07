@@ -140,7 +140,7 @@ typedef struct
   * @{
   */
 #if !defined  (HSE_VALUE)
-#define HSE_VALUE    ((uint32_t)8000000U)  /*!< Value of the HSE oscillator in Hz */
+#define HSE_VALUE    ((uint32_t) 14745600)  /*!< Value of the HSE oscillator in Hz */
 #endif /* HSE_VALUE */
 
 #if !defined  (HSI_VALUE)

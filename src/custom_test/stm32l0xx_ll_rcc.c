@@ -47,6 +47,8 @@
   * @{
   */
 
+#define HSE_VALUE ((uint32_t) 14745600)
+
 #if defined(RCC)
 
 /** @defgroup RCC_LL RCC

@@ -4,12 +4,6 @@
 #include <stdbool.h>
 #include <stdnoreturn.h>
 
-/* 2018-08-04 FIXME: use 14.7456 MHz crystal instead of internal oscillator */
-/*#define HSE_VALUE ((uint32_t) 14745600)*/
-/* #define HSE_VALUE ((uint32_t) 8000000) */
-// HSE_VALUE = 16 MHz if using HSI (just go with HSE = HSI lmao 2017-08-07 FIXME)
-#define HSE_VALUE ((uint32_t) 16000000)
-
 #ifndef USE_FULL_LL_DRIVER
 #define USE_FULL_LL_DRIVER
 #endif /* ifndef USE_FULL_LL_DRIVER */
@@ -33,6 +27,8 @@ volatile uint8_t delay = 0;
 static queue_t usart1_queue;
 static queue_t usart2_queue;
 
+// error_catch serves as a debugging function that will catch all failed
+// asserts and trap execution for the debugger
 noreturn void error_catch(void);
 noreturn void error_catch(void) {
   __disable_irq();
@@ -46,14 +42,11 @@ noreturn void error_catch(void) {
 }
 
 int main(void) {
-  LL_RCC_ClocksTypeDef rcc_clocks;
-
   // enable prefetch
   // 2018-08-04 FIXME: explain why
   LL_FLASH_EnablePrefetch();
 
   config_system_clocks();
-  LL_RCC_GetSystemClocksFreq(&rcc_clocks);
   config_gpio();
   config_uart();
   config_tim2_nvic();
@@ -65,10 +58,6 @@ int main(void) {
   radio_CC1125_power_on();
   radio_CANSAT_power_on();
   radio_set_mode(RM_TRANSMIT);
-
-  LL_RCC_GetSystemClocksFreq(&rcc_clocks);
-
-  /* error_catch(); */
 
   while (1) {
     // goodnight sweet prince
