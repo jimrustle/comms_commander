@@ -52,13 +52,13 @@ $(TARGET).elf: $(OBJECTS) $(PREPROCS)
 	$(SIZE) $(TARGET).elf
 
 debug: $(TARGET).elf
-	@exec arm-none-eabi-gdb -ex "target extended-remote localhost:3333" comms_command.elf
+	exec arm-none-eabi-gdb -ex "target extended-remote localhost:3333" comms_command.elf
 
 debug_t: $(TARGET).elf
-	echo "reset halt" | telnet localhost 4444
+	exec echo "reset halt" | nc localhost 4444 -w0
 
 debug_telnet: $(TARGET).elf
-	telnet localhost 4444
+	exec telnet localhost 4444
 
 dump: $(TARGET).elf
 	cat $(TARGET).lst

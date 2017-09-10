@@ -6,6 +6,8 @@
 
 //#define USE_HSI
 
+//#define SPI_BITBANG
+
 #ifndef USE_FULL_LL_DRIVER
 #define USE_FULL_LL_DRIVER
 #endif /* ifndef USE_FULL_LL_DRIVER */
@@ -22,49 +24,37 @@
 #include "peripherals.h"
 #include "assert.h"
 
-typedef struct pll_t {
-  LL_UTILS_PLLInitTypeDef prescale;
-  LL_UTILS_ClkInitTypeDef bus;
-} pll_t;
-
-#ifdef USE_HSI
-pll_t pll_init = {
-  // we obviously use the PLL, and set it to have no effect on the 16 MH HSI clock
-  .prescale = {.PLLMul = LL_RCC_PLL_MUL_4, .PLLDiv = LL_RCC_PLL_DIV_4
-  },
-  // default system clock = 16 MHz HSI, but we use the 2MHz after prescale
-  // (see stm32cube clock config chart)
-  .bus = {.AHBCLKDivider = LL_RCC_SYSCLK_DIV_8,
-          .APB1CLKDivider = LL_RCC_APB1_DIV_1,
-          .APB2CLKDivider = LL_RCC_APB2_DIV_1,
-  }
-};
-#else
-pll_t pll_init = {
-  // use same settings for PLL as in HSI
-  .prescale = {.PLLMul = LL_RCC_PLL_MUL_4, .PLLDiv = LL_RCC_PLL_DIV_4
-  },
-  // reconfigure bus frequencies
-  .bus = {.AHBCLKDivider = LL_RCC_SYSCLK_DIV_1,
-          .APB1CLKDivider = LL_RCC_APB1_DIV_8,
-          .APB2CLKDivider = LL_RCC_APB2_DIV_8,
-  }
-};
-#endif
-
-typedef struct usart_t {
-  LL_USART_InitTypeDef init;
-  LL_USART_ClockInitTypeDef clock;
-} usart_t;
-
-usart_t usart_init;
-
-LL_TIM_InitTypeDef tim_init;
-
-LL_SPI_InitTypeDef spi_init;
-
 // 2018-08-04 FIXME: use external clock instead of internal oscillator
 void config_system_clocks(void) {
+  typedef struct pll_t {
+    LL_UTILS_PLLInitTypeDef prescale;
+    LL_UTILS_ClkInitTypeDef bus;
+  } pll_t;
+
+#ifdef USE_HSI
+  pll_t pll_init = {
+    // we obviously use the PLL, and set it to have no effect on the 16 MH HSI clock
+    .prescale = {.PLLMul = LL_RCC_PLL_MUL_4, .PLLDiv = LL_RCC_PLL_DIV_4
+    },
+    // default system clock = 16 MHz HSI, but we use the 2MHz after prescale
+    // (see stm32cube clock config chart)
+    .bus = {.AHBCLKDivider = LL_RCC_SYSCLK_DIV_8,
+            .APB1CLKDivider = LL_RCC_APB1_DIV_1,
+            .APB2CLKDivider = LL_RCC_APB2_DIV_1,
+    }
+  };
+#else
+  pll_t pll_init = {
+    // use same settings for PLL as in HSI
+    .prescale = {.PLLMul = LL_RCC_PLL_MUL_4, .PLLDiv = LL_RCC_PLL_DIV_4
+    },
+    // reconfigure bus frequencies
+    .bus = {.AHBCLKDivider = LL_RCC_SYSCLK_DIV_1,
+            .APB1CLKDivider = LL_RCC_APB1_DIV_8,
+            .APB2CLKDivider = LL_RCC_APB2_DIV_8,
+    }
+  };
+#endif
   // set up clocks - OSC_IN and OSC_OUT on PH0 and PH1,
   // HSE input clock is 14.7456 MHz
   // set PLL as system clock, using HSE as source
@@ -87,11 +77,11 @@ void config_system_clocks(void) {
                           LL_IOP_GRP1_PERIPH_GPIOB |
                           LL_IOP_GRP1_PERIPH_GPIOC);
 
-  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1 |
-                           LL_APB2_GRP1_PERIPH_SPI1);
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1);
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
 
-  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2 |
-                           LL_APB1_GRP1_PERIPH_TIM2);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM2);
 
   LL_RCC_SetUSARTClockSource(LL_RCC_USART1_CLKSOURCE_PCLK2);
   LL_RCC_SetUSARTClockSource(LL_RCC_USART2_CLKSOURCE_PCLK1);
@@ -154,6 +144,13 @@ void config_gpio(void) {
 }
 
 void config_uart(void) {
+  typedef struct usart_t {
+    LL_USART_InitTypeDef init;
+    LL_USART_ClockInitTypeDef clock;
+  } usart_t;
+
+  usart_t usart_init;
+
   /* USART configuration */
   LL_USART_StructInit(&usart_init.init);
   LL_USART_ClockStructInit(&usart_init.clock);
@@ -167,9 +164,6 @@ void config_uart(void) {
   LL_USART_ClockInit(USART2, &usart_init.clock);
   LL_USART_Init(USART2, &usart_init.init);
   LL_USART_Enable(USART2);
-
-  // enable rx interrupt for USART1
-  LL_USART_EnableIT_RXNE(USART1);
 
   HAL_NVIC_EnableIRQ(USART1_IRQn);
   HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
@@ -196,6 +190,7 @@ void config_uart(void) {
 }
 
 void config_tim2_nvic(void) {
+  LL_TIM_InitTypeDef tim_init;
   HAL_NVIC_EnableIRQ(TIM2_IRQn);
   HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
 
@@ -218,10 +213,7 @@ void config_tim2_nvic(void) {
   // default counter mode is to count down from autoreload value to zero
   // therefore, tim2_nvic fires once a second
   LL_TIM_SetAutoReload(TIM2, 100);
-
 #endif
-
-  LL_TIM_EnableIT_UPDATE(TIM2);
 }
 
 // 2017-08-04 FIXME: use hardware SPI
@@ -229,11 +221,8 @@ void config_spi(void) {
   // set up peripherals - alternate pin functions are on page 45/136
   // of DM00141136 - STM32L071x8 datasheet
   //   - SPI for CC1125 - SPI1 on PA4/5/6/7
-  /* LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_4, LL_GPIO_MODE_ALTERNATE); */
-  /* LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ALTERNATE); */
-  /* LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE); */
-  /* LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE); */
 
+  #ifdef SPI_BITBANG
   LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_4, LL_GPIO_MODE_OUTPUT);
   LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_OUTPUT);
   LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_OUTPUT);
@@ -243,20 +232,38 @@ void config_spi(void) {
   LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_5, LL_GPIO_OUTPUT_PUSHPULL);
   LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL);
   LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_7, LL_GPIO_OUTPUT_PUSHPULL);
+  #else
+  LL_SPI_InitTypeDef spi_init;
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_4, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE);
 
-  /* LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_4, LL_GPIO_AF_0);  // SPI1_NSS */
-  /* LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_0);  // SPI1_SCK */
-  /* LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_6, LL_GPIO_AF_0);  // SPI1_MISO */
-  /* LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_7, LL_GPIO_AF_0);  // SPI1_MOSI */
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_4, LL_GPIO_AF_0);  // SPI1_NSS
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_5, LL_GPIO_AF_0);  // SPI1_SCK
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_6, LL_GPIO_AF_0);  // SPI1_MISO
+  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_7, LL_GPIO_AF_0);  // SPI1_MOSI
 
-  /* LL_SPI_StructInit(&spi_init); */
-  /* LL_SPI_Init(SPI1, &spi_init); */
+  LL_SPI_StructInit(&spi_init);
 
-  /* LL_SPI_Enable(SPI1); */
+  spi_init.TransferDirection = LL_SPI_FULL_DUPLEX;
+  spi_init.Mode =              LL_SPI_MODE_MASTER;
+  spi_init.DataWidth =         LL_SPI_DATAWIDTH_8BIT;
+  spi_init.ClockPolarity =     LL_SPI_POLARITY_LOW;
+  spi_init.ClockPhase =        LL_SPI_PHASE_1EDGE;
+  spi_init.NSS =               LL_SPI_NSS_HARD_OUTPUT;
+  spi_init.BaudRate =          LL_SPI_BAUDRATEPRESCALER_DIV2;
+  spi_init.BitOrder =          LL_SPI_MSB_FIRST;
+  /* spi_init.TIMode = SPI_TIMODE_DISABLE; */
+  /* spi_init.CRCCalculation = SPI_CRCCALCULATION_DISABLE; */
+  /* spi_init.CRCPolynomial = 7; */
 
-  /* LL_SPI_SetStandard(SPI1, LL_SPI_PROTOCOL_MOTOROLA); */
-  /* LL_SPI_SetTransferDirection(SPI1, LL_SPI_FULL_DUPLEX); */
-  /* LL_SPI_SetNSSMode(SPI1, LL_SPI_NSS_HARD_OUTPUT); */
+  ErrorStatus e = LL_SPI_Init(SPI1, &spi_init);
+  if (e != SUCCESS) {
+    error_catch();
+  }
 
-  /* LL_TIM_EnableIT_UPDATE(TIM2); */
+  LL_SPI_Enable(SPI1);
+
+#endif // end SPI_BITBANG
 }

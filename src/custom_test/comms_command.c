@@ -14,6 +14,7 @@
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_rcc.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_gpio.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_usart.h"
+#include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_spi.h"
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_utils.h"
 
 #include "command.h"
@@ -49,8 +50,8 @@ int main(void) {
   config_system_clocks();
   config_gpio();
   config_uart();
-  config_tim2_nvic();
   config_spi();
+  config_tim2_nvic();
 
   queue_init(&usart1_queue);
   queue_init(&usart2_queue);
@@ -58,6 +59,11 @@ int main(void) {
   radio_CC1125_power_on();
   radio_CANSAT_power_on();
   radio_set_mode(RM_TRANSMIT);
+
+  LL_TIM_EnableIT_UPDATE(TIM2);
+
+  // enable rx interrupt for USART1
+  LL_USART_EnableIT_RXNE(USART1);
 
   while (1) {
     // goodnight sweet prince
@@ -83,6 +89,7 @@ void putchar(usart_num u, char c) {
 // interrupt handlers
 void TIM2_IRQHandler(void);
 void TIM2_IRQHandler() {
+  __disable_irq();
   LL_TIM_ClearFlag_UPDATE(TIM2);
   delay++;
   if (delay > 10) {
@@ -90,14 +97,27 @@ void TIM2_IRQHandler() {
   }
 
   radio_LED_toggle();
-  radio_CANSAT_test();
-  pr_hex(USART_1, delay);
-  pr_str(USART_1, " Shi\r\n");
+  if (LL_SPI_IsActiveFlag_TXE(SPI1)){
+    LL_SPI_TransmitData8(SPI1, 0x3D);
+  }
+
+  if (LL_SPI_IsActiveFlag_RXNE(SPI1)) {
+    char c = LL_SPI_ReceiveData8(SPI1);
+    pr_hex(USART_1, c); pr_nl(USART_1);
+  }
+  /* radio_CANSAT_test(); */
+  /* pr_hex(USART_1, delay); */
+  /* pr_str(USART_1, " Shi\r\n"); */
+  __enable_irq();
 }
 
+// 2017-08-07 FIXME: there is a race condition in the state machines of the USART1
+// and USART2 interrupt handlers
+// bonus points to [$favourite_harry_potter_house] if you can fix it
+// (or just use the USART DMA and hope the problem goes away lol)
 void USART1_IRQHandler(void);
 void USART1_IRQHandler() {
-  /* __disable_irq(); */
+  __disable_irq();
   // receive
   if (LL_USART_IsActiveFlag_RXNE(USART1)) {
     // RXNE flag is cleared by reading from the USART1 data register
@@ -121,16 +141,17 @@ void USART1_IRQHandler() {
     } else {
       // TXE flag cleared by writing to USART1 data register
       LL_USART_TransmitData8(USART1, queue_rem_char(&usart1_queue));
+      LL_USART_EnableIT_TXE(USART1);
     }
   } else {
     LL_USART_DisableIT_TXE(USART1);
   }
-  /* __enable_irq(); */
+  __enable_irq();
 }
 
 void USART2_IRQHandler(void);
 void USART2_IRQHandler() {
-  /* __disable_irq(); */
+  __disable_irq();
   // usart2 doesn't receive anything from the Stensat CANSAT
 
   // transmit
@@ -140,11 +161,12 @@ void USART2_IRQHandler() {
     } else {
       // TXE flag cleared by writing to USART2 data register
       LL_USART_TransmitData8(USART2, queue_rem_char(&usart2_queue));
+      LL_USART_EnableIT_TXE(USART2);
     }
   } else {
     LL_USART_DisableIT_TXE(USART2);
   }
-  /* __enable_irq(); */
+  __enable_irq();
 }
 
 // fstack-protector

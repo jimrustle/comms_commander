@@ -1,12 +1,7 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
-/*
- * S
- * CCC
- * T
- * CCT
-*/
+#define SPI_BITBANG
 
 #include "radio.h"
 #include "radio_cc1125.h"
@@ -78,6 +73,7 @@ static const registerSetting_t preferredSettings[]= {
 
 static void cc1125_write_byte(uint16_t addr, uint8_t data);
 static void cc1125_write_byte(uint16_t addr, uint8_t data) {
+#ifdef SPI_BITBANG
   spi_ss_low();
   // check extended byte
   if ((addr & 0xFF00) == 0x2F00) {
@@ -87,12 +83,15 @@ static void cc1125_write_byte(uint16_t addr, uint8_t data) {
   spi_write_byte(addr & 0xFF);
   spi_write_byte(data);
   spi_ss_high();
+#else
+#endif
 }
 
 static uint8_t cc1125_read_byte(uint16_t addr);
 static uint8_t cc1125_read_byte(uint16_t addr) {
   uint8_t ret = 0;
 
+#ifdef SPI_BITBANG
   spi_ss_low();
   // check extended byte, then use extended command strobe
   if ((addr & 0xFF00) == 0x2F00) {
@@ -106,10 +105,13 @@ static uint8_t cc1125_read_byte(uint16_t addr) {
   spi_ss_high();
 
   return ret;
+#else
+#endif
 }
 
 static void cc1125_command_strobe(uint8_t);
 static void cc1125_command_strobe(uint8_t command) {
+#ifdef SPI_BITBANG
   if ((0x30 <= command) && (command <= 0x3D)) {
     spi_ss_low();
     spi_write_byte(command);
@@ -119,6 +121,8 @@ static void cc1125_command_strobe(uint8_t command) {
 
     error_catch();
   }
+#else
+#endif
 }
 
 /***************************************************/
@@ -139,11 +143,11 @@ void radio_set_mode(radio_mode_t mode) {
 // | PB0  | CC1125_Tx_or_Rx | Switches Rx and Tx chain (0 = Rx, 1 = Tx)
 
 void radio_CC1125_power_on(void) {
-    LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_1);
+  LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_1);
 }
 
 void radio_CC1125_power_off(void) {
-    LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_1);
+  LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_1);
 }
 
 void radio_CC1125_get_status(void) {
@@ -217,11 +221,11 @@ void radio_CC1125_test(void) {
 // | PB4  | CANSAT_Enable   | Enables power switch to CANSAT
 
 void radio_CANSAT_power_on(void) {
-    LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_4);
+  LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_4);
 }
 
 void radio_CANSAT_power_off(void) {
-    LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_4);
+  LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_4);
 }
 
 void radio_CANSAT_init_callsigns(void) {
@@ -263,14 +267,14 @@ void radio_CANSAT_set_freq(void) {
 
 void radio_CANSAT_set_baud(CANSAT_baud_t baud) {
   switch (baud) {
-    case M1200_AFSK: {
-      pr_str(USART_2, "M1200\r");
-      break;
-    }
-    case M9600_FSK: {
-      pr_str(USART_2, "M9600\r");
-      break;
-    }
+  case M1200_AFSK: {
+    pr_str(USART_2, "M1200\r");
+    break;
+  }
+  case M9600_FSK: {
+    pr_str(USART_2, "M9600\r");
+    break;
+  }
   }
 }
 
@@ -284,22 +288,22 @@ void radio_CANSAT_test(void) {
 // | PA15 | PA_Enable       | Enables (logic to the gate of) power amplifier
 
 void radio_PA_power_on(void) {
-    LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_15);
+  LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_15);
 }
 
 void radio_PA_power_off(void) {
-    LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_15);
+  LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_15);
 }
 
 /***************************************************/
 
 // MCU
 void radio_LED_on(void) {
-    LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
+  LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_13);
 }
 
 void radio_LED_off(void) {
-    LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_13);
+  LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_13);
 }
 
 void radio_LED_toggle(void) {
