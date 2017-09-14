@@ -1,0 +1,23 @@
+#! /bin/env tclsh
+package require Tk
+
+message .m -text {Hello Tcl!} -background white
+pack .m -expand true -fill both -ipadx 800 -ipady 600
+
+menu .menubar
+menu .menubar.help -tearoff 0
+.menubar add cascade -label Help -menu .menubar.help -underline 0
+.menubar.help add command -label {About ...} \
+    -accelerator F1 -underline 0 -command showAbout
+
+proc showAbout {} {
+    tk_messageBox -message "Neudose Comms Configurator\n 0.0.1" \
+        -title {About}
+}
+
+wm title . {Neudose Comms Configurator Tool}
+. configure -menu .menubar -width 800 -height 600
+bind . {<Key F1>} {showAbout}
+
+pack [button .b -text {Quit} -command {exit}]
+
