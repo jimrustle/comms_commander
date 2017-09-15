@@ -1,6 +1,6 @@
 
-#include <stdint.h>
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_ll_spi.h"
+#include <stdint.h>
 
 /* #define SPI_BITBANG */
 

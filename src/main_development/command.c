@@ -2,55 +2,70 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 #include "command.h"
+#include "assert.h"
 #include "log.h"
 #include "radio.h"
+
+#include <stdbool.h>
 #include <string.h>
 
+#define COM_BUF_LEN 10
+
 typedef struct command_t {
-  const char * command;
-  void (* command_func)(void);
+    const char* command;
+    void (*command_func)(void);
 } command_t;
 
-extern void error_catch(void);
+// should we even be keeping state?
+typedef struct radio_t {
+    bool CANSAT_state; // on/off
+    bool CANSAT_baud; // M1200/M9600
+    bool CC_state; // on/off
+    bool CC_mode; // modulation/freq/idk
+} radio_t;
+
 static command_t command_table[] = {
-  {"CS0", radio_CANSAT_power_off},
-  {"CS1", radio_CANSAT_power_on},
-  {"CST", radio_CANSAT_test},
+    { "CS0", radio_CANSAT_power_off },
+    { "CS1", radio_CANSAT_power_on },
+    { "CST", radio_CANSAT_test },
+    /*{ "CSTT", radio_CANSAT_tx_telemetry },*/
 
-  {"L0",  radio_LED_off},
-  {"L1",  radio_LED_on},
-  {"LT",  radio_LED_toggle},
+    { "L0", radio_LED_off },
+    { "L1", radio_LED_on },
+    { "LT", radio_LED_toggle },
 
-  {"T",   radio_CC1125_test},
-  {"S",   radio_CC1125_get_status},
-  {"CCC", radio_CC1125_config_radio},
-  {"CCT", radio_CC1125_enable_TX},
-  {"CCR", radio_CC1125_enable_RX},
-  {"CC0", radio_CC1125_power_off},
-  {"CC1", radio_CC1125_power_on},
+    { "T", radio_CC1125_test },
+    { "S", radio_CC1125_get_status },
+    { "CCC", radio_CC1125_config_radio },
+    { "CCT", radio_CC1125_enable_TX },
+    { "CCR", radio_CC1125_enable_RX },
+    { "CC0", radio_CC1125_power_off },
+    { "CC1", radio_CC1125_power_on },
 
-  {"PA0", radio_PA_power_off},
-  {"PA1", radio_PA_power_on},
+    { "PA0", radio_PA_power_off },
+    { "PA1", radio_PA_power_on },
 
-  {"K",   error_catch},
+    { "K", error_catch },
 };
 
-void add_c(char c) {
-    static char command_buf[10] = {0};
+void add_c(char c)
+{
+    static char command_buf[COM_BUF_LEN] = { 0 };
     static int buf_idx = 0;
 
     // if '\r', interpret command
     if (c == '\r') {
         // zero out rest of buffer
-        for (uint8_t i = buf_idx; i < 10; i++) {
+        for (uint8_t i = buf_idx; i < COM_BUF_LEN; i++) {
             command_buf[i] = 0;
         }
 
         // check match
-        for (uint8_t i = 0; i < sizeof(command_table)/sizeof(command_t); i++) {
+        for (uint8_t i = 0; i < sizeof(command_table) / sizeof(command_t); i++) {
             if (strcmp(command_buf, command_table[i].command) == 0) {
                 command_table[i].command_func();
-                pr_nl(USART_1); pr_str(USART_1, "ok.");
+                pr_nl(USART_1);
+                pr_str(USART_1, "ok.");
                 break;
             }
         }
@@ -58,10 +73,8 @@ void add_c(char c) {
         pr_nl(USART_1);
 
         buf_idx = 0;
-    }
-    else { // else, add char
+    } else { // else, add char
         command_buf[buf_idx++] = c;
-        buf_idx = buf_idx % 10;
+        buf_idx = buf_idx % COM_BUF_LEN;
     }
 }
-
