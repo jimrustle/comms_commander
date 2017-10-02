@@ -21,7 +21,7 @@
 
 #include "../../libs/stm32l0_low_level/stm32l0_ll/stm32l0xx_hal_cortex.h"
 
-#include "assert.h"
+#include "error.h"
 #include "peripherals.h"
 #include "spi.h"
 
@@ -46,6 +46,7 @@ void config_system_clocks(void)
         }
     };
 #else
+    // use HSE also FIXME: u know what to do Trent pls
     pll_t pll_init = {
         // use same settings for PLL as in HSI
         .prescale = {.PLLMul = LL_RCC_PLL_MUL_4, .PLLDiv = LL_RCC_PLL_DIV_4 },
@@ -126,6 +127,10 @@ void config_gpio(void)
     LL_GPIO_SetPinOutputType(GPIOC, LL_GPIO_PIN_13, LL_GPIO_OUTPUT_PUSHPULL);
 
     /*   - UART for CANSAT - USART2 on PA2 and PA3 */
+    /*LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_OUTPUT);*/
+    /*LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_PUSHPULL);*/
+    /*LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_2, LL_GPIO_PULL_UP);*/
+
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
     LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_ALTERNATE);
 
@@ -272,8 +277,8 @@ void config_spi(void)
     HAL_NVIC_EnableIRQ(SPI1_IRQn);
     HAL_NVIC_SetPriority(SPI1_IRQn, 0, 0);
 
-    /* LL_SPI_EnableIT_RXNE(SPI1); // it's okay to enable rxne b/c nothing will be received */
-    /* LL_SPI_EnableIT_TXE(SPI1); */ // we shouldn't enable txe until we have something to send though
+     LL_SPI_EnableIT_RXNE(SPI1); // it's okay to enable rxne b/c nothing will be received 
+     /*LL_SPI_EnableIT_TXE(SPI1);  // we shouldn't enable txe until we have something to send though*/
 
 #endif // end SPI_BITBANG
 }

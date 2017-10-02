@@ -17,8 +17,8 @@ void pr_hex_digit(usart_num u, uint8_t h)
 
 void pr_ch(usart_num u, char ch)
 {
-    extern void putchar(usart_num u, char c);
-    putchar(u, ch);
+    extern void usart_putchar(usart_num u, char c);
+    usart_putchar(u, ch);
 }
 
 void pr_str(usart_num u, const char* str)

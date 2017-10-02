@@ -22,6 +22,8 @@ typedef struct telemetry_t {
     uint8_t battery_voltage;
 } telemetry_t;
 
+void radio_CC1125_set_mode_RX(void);
+void radio_CC1125_set_mode_TX(void);
 void radio_CC1125_set_mode(CC1125_mode_t mode);
 void radio_CC1125_power_on(void);
 void radio_CC1125_power_off(void);

@@ -2,7 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
 #include "command.h"
-#include "assert.h"
+#include "error.h"
 #include "log.h"
 #include "radio.h"
 
@@ -40,24 +40,41 @@ static command_t command_table[] = {
     { "CCT", radio_CC1125_enable_TX },
     { "CCR", radio_CC1125_enable_RX },
     { "CC0", radio_CC1125_power_off },
+    { "CCTX", radio_CC1125_set_mode_TX },
+    { "CCRX", radio_CC1125_set_mode_RX },
     { "CC1", radio_CC1125_power_on },
 
     { "PA0", radio_PA_power_off },
     { "PA1", radio_PA_power_on },
 
     { "K", error_catch },
+    { "R", error_catch },
 };
 
+extern volatile bool flag;
 void add_c(char c)
 {
     static char command_buf[COM_BUF_LEN] = { 0 };
     static int buf_idx = 0;
+
+    // c cannot be a non ASCII character
+    /* if (!IS_BASE64_ENCODED(c) && (c != '\r')) { */
+    /*   error_catch(); */
+    /* } */
 
     // if '\r', interpret command
     if (c == '\r') {
         // zero out rest of buffer
         for (uint8_t i = buf_idx; i < COM_BUF_LEN; i++) {
             command_buf[i] = 0;
+        }
+
+        if (strcmp(command_buf, "F") == 0) {
+          flag ^= 1;
+          pr_nl(USART_1);
+          pr_str(USART_1, "ok.");
+          buf_idx = 0;
+          return;
         }
 
         // check match

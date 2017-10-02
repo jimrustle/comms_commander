@@ -28,6 +28,14 @@
 volatile uint8_t delay = 0;
 static queue_t usart1_queue;
 static queue_t usart2_queue;
+volatile uint8_t rx_bytes = 1;
+volatile bool flag = false;
+
+typedef enum main_state_t {
+  CC1125_TRANSMIT, CANSAT_TRANSMIT,
+} main_state_t;
+
+main_state_t main_state = CANSAT_TRANSMIT;
 
 // error_catch serves as a debugging function that will catch all failed
 // asserts and trap execution for the debugger
@@ -55,6 +63,7 @@ int main(void)
     config_uart();
     config_spi();
     config_tim2_nvic();
+    //config_rtc();
 
     queue_init(&usart1_queue);
     queue_init(&usart2_queue);
@@ -67,6 +76,9 @@ int main(void)
 
     // enable rx interrupt for USART1
     LL_USART_EnableIT_RXNE(USART1);
+    LL_USART_DisableIT_TXE(USART1);
+
+    radio_LED_off();
 
     while (1) {
         // goodnight sweet prince
@@ -78,8 +90,8 @@ int main(void)
 
 // 2018-04-08 FIXME: implement DMA for UART transmission
 // putchar loads a circular buffer with characters to transmit (print_queue.c)
-void putchar(usart_num u, char c);
-void putchar(usart_num u, char c)
+void usart_putchar(usart_num u, char c);
+void usart_putchar(usart_num u, char c)
 {
     if (u == USART_1) {
         queue_add_char(&usart1_queue, c);
@@ -95,16 +107,48 @@ void TIM2_IRQHandler(void);
 void TIM2_IRQHandler()
 {
     __disable_irq();
-    LL_TIM_ClearFlag_UPDATE(TIM2);
     delay++;
-    if (delay > 10) {
-        delay = 0;
+    if (delay > 1) {
+      delay = 0;
+      if (flag) {
+        if (main_state == CC1125_TRANSMIT) {
+          main_state = CANSAT_TRANSMIT;
+          radio_CC1125_power_off();         // CC0
+          radio_CANSAT_power_on();          // CS1
+          for (volatile int i = 0; i < 10; i++) {
+            for (volatile int j = 0; j < 1000; j++);;
+          }
+          radio_CANSAT_test();              // CST
+          for (volatile int i = 0; i < 10; i++) {
+            for (volatile int j = 0; j < 1000; j++);;
+          }
+        } else {
+          main_state = CC1125_TRANSMIT;
+          radio_CANSAT_power_off();         // CS0
+          radio_CC1125_power_on();          // CC1
+          for (volatile int i = 0; i < 10; i++) {
+            for (volatile int j = 0; j < 1000; j++);;
+          }
+          radio_CC1125_config_radio();      // CCC
+          for (volatile int i = 0; i < 10; i++) {
+            for (volatile int j = 0; j < 1000; j++);;
+          }
+          radio_CC1125_test();              // T
+          for (volatile int i = 0; i < 10; i++) {
+            for (volatile int j = 0; j < 1000; j++);;
+          }
+          radio_CC1125_enable_TX();         // CCT
+          for (volatile int i = 0; i < 10; i++) {
+            for (volatile int j = 0; j < 1000; j++);;
+          }
+        }
+      }
     }
 
     radio_LED_toggle();
-    /* radio_CANSAT_test(); */
     /* pr_hex(USART_1, delay); */
     /* pr_str(USART_1, " Shi\r\n"); */
+    LL_TIM_ClearFlag_UPDATE(TIM2);
     __enable_irq();
 }
 
@@ -120,7 +164,9 @@ void USART1_IRQHandler()
     if (LL_USART_IsActiveFlag_RXNE(USART1)) {
         // RXNE flag is cleared by reading from the USART1 data register
         char c = LL_USART_ReceiveData8(USART1);
-        add_c(c);
+        if (c != '\0') {
+          add_c(c);
+        }
 
         // echo char to serial
         if (c == '\r') {
@@ -140,9 +186,10 @@ void USART1_IRQHandler()
             LL_USART_TransmitData8(USART1, queue_rem_char(&usart1_queue));
             LL_USART_EnableIT_TXE(USART1);
         }
-    } else {
-        LL_USART_DisableIT_TXE(USART1);
     }
+    /* else { */
+    /*     LL_USART_DisableIT_TXE(USART1); */
+    /* } */
     __enable_irq();
 }
 
@@ -177,10 +224,9 @@ void SPI1_IRQHandler(void)
     }
 
     // otherwise, get data
-    /* if (LL_SPI_IsActiveFlag_RXNE(SPI1)) { */
-    /*   spi_rx_byte = LL_SPI_ReceiveData8(SPI1); */
-    /* pr_hex(USART_1, c); pr_nl(USART_1); */
-    /* } */
+     if (LL_SPI_IsActiveFlag_RXNE(SPI1)) {
+       spi_rx_byte = LL_SPI_ReceiveData8(SPI1);
+     }
 }
 
 // fstack-protector
