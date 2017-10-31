@@ -1,7 +1,7 @@
 
 #include <stdbool.h>
 // 2018-08-04 FIXME: change buffer length to reasonable, 'justified' size
-#define BUFFER_LEN 80
+#define BUFFER_LEN 200
 
 typedef struct queue_t {
     char char_buf[BUFFER_LEN];

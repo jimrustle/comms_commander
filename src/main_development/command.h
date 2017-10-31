@@ -1,2 +1,2 @@
 
-void add_c(char c);
+void parse_char(char c);

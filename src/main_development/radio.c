@@ -10,28 +10,21 @@
 
 #include "error.h"
 
-uint8_t spi_tx_byte = 0;
-uint8_t spi_rx_byte = 0;
+volatile uint8_t spi_tx_byte = 0;
+volatile uint8_t spi_rx_byte = 0;
 
 /***************************************************/
 
-// Tx or Rx mode
-
-void radio_CC1125_set_mode_RX(void) {
-  LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_0);
-}
-
-void radio_CC1125_set_mode_TX(void) {
-  LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_0);
-}
-
-void radio_CC1125_set_mode(CC1125_mode_t mode)
+static void rxtx_switch_set_mode_RX_DATA(void)
 {
-    if (mode == CC_TRANSMIT) {
-      radio_CC1125_set_mode_TX();
-    } else { // mode == CC_RECEIVE
-      radio_CC1125_set_mode_RX();
-    }
+    // set Tx/Rx switch to receive path
+    LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_0);
+}
+
+static void rxtx_switch_set_mode_TX_DATA(void)
+{
+    // set Tx/Rx switch to transmit path
+    LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_0);
 }
 
 // CC1125
@@ -42,9 +35,6 @@ void radio_CC1125_set_mode(CC1125_mode_t mode)
 void radio_CC1125_power_on(void)
 {
     LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_1);
-    __disable_irq();
-    for (volatile int j = 0; j < 500; j++);;
-    __enable_irq();
 }
 
 void radio_CC1125_power_off(void)
@@ -58,34 +48,77 @@ void radio_CC1125_power_off(void)
 #endif
 }
 
+// sets the radio mode using a "global" configuration parameter
+void radio_set_mode(radio_config_t mode)
+{
+    if (mode.is_enabled) {
+        if (mode.tx_type == RX_DATA) {
+            rxtx_switch_set_mode_RX_DATA();
+            radio_CC1125_power_on();
+            radio_CANSAT_power_off();
+        } else if (mode.tx_type == TX_DATA) {
+            radio_CC1125_power_on();
+            radio_CANSAT_power_off();
+            rxtx_switch_set_mode_TX_DATA();
+        } else if (mode.tx_type == TX_TELEMETRY) {
+            rxtx_switch_set_mode_TX_DATA();
+            radio_CC1125_power_off();
+            radio_CANSAT_power_on();
+        }
+    } else {
+        // is_enabled is false and thus we turn off both radios
+            radio_CC1125_power_off();
+            radio_CANSAT_power_off();
+    }
+}
+
+static const char* status_states[] = {
+    "IDLE",
+    "RX",
+    "TX",
+    "FSTXON",
+    "CALIBRATE",
+    "SETTLING",
+    "RX FIFO ERROR",
+    "TX FIFO ERROR"
+};
+
 void radio_CC1125_get_status(void)
 {
     // get status by reading status byte from NOP command strobe
-    pr_hex(USART_1, cc1125_read_byte(CC1125_SNOP));
-    /*pr_ch(USART_1, ' ');*/
+    uint8_t status = cc1125_read_byte(CC1125_SNOP);
+    status = (status & 0x70) >> 4;
 
-    /*pr_hex(USART_1, cc1125_read_byte(CC1125_MODEM_STATUS0)); pr_ch(USART_1, ' ');*/
+    pr_nl(USART_1);
+    pr_str(USART_1, status_states[status]);
+    pr_nl(USART_1);
 
-    uint8_t num_bytes = cc1125_read_byte(CC1125_NUM_TXBYTES);
-    pr_hex(USART_1, num_bytes); pr_nl(USART_1);
+    /*uint8_t num_bytes = cc1125_read_byte(CC1125_NUM_TXBYTES);*/
+    /*pr_hex(USART_1, num_bytes);*/
+    /*pr_nl(USART_1);*/
 
-    /*// direct fifo debug*/
+    /*[>// direct fifo debug<]*/
     /*for (uint8_t i = 0; i < num_bytes; i++) {*/
-    for (uint8_t i = 0; i < 7; i++) {
-      spi_ss_low();
-      spi_read_write_byte(0x80 | 0x3E); // direct fifo read
-      spi_read_write_byte(i);
-      uint8_t ret = spi_read_write_byte(0x00);
-      spi_ss_high();
+        /*[> for (uint8_t i = 0; i < 7; i++) { <]*/
+        /*spi_ss_low();*/
+        /*spi_read_write_byte(0x80 | 0x3E); // direct fifo read*/
+        /*spi_read_write_byte(i);*/
+        /*uint8_t ret = spi_read_write_byte(0x00);*/
+        /*spi_ss_high();*/
 
-      pr_hex(USART_1, i); pr_str(USART_1, ": "); pr_hex(USART_1, ret); pr_ch(USART_1, ' ');
-      pr_ch(USART_1, ret); pr_nl(USART_1);
-    }
+        /*pr_hex(USART_1, i);*/
+        /*pr_str(USART_1, ": ");*/
+        /*pr_hex(USART_1, ret);*/
+        /*pr_ch(USART_1, ' ');*/
+        /*pr_ch(USART_1, ret);*/
+        /*pr_nl(USART_1);*/
+    /*}*/
 }
 
 // configure radio using the preferred settings (generated from SmartRF Studio)
 void radio_CC1125_config_radio(void)
 {
+    cc1125_command_strobe(CC1125_SRES);
     cc1125_config_radio();
 }
 
@@ -93,8 +126,9 @@ void radio_CC1125_config_radio(void)
 // (check using polling, for now)
 void radio_CC1125_enable_TX(void)
 {
-    cc1125_command_strobe(CC1125_SFSTXON);
+    /* cc1125_command_strobe(CC1125_SFSTXON); */
     cc1125_command_strobe(CC1125_STX);
+    cc1125_command_strobe(CC1125_SFTX);
 }
 
 // enable rx mode - should be called only after filling the RX FIFO
@@ -114,15 +148,22 @@ void radio_CC1125_test(void)
     /* pr_hex(USART_1, cc1125_read_byte(0x00)); */
     /* pr_hex(USART_1, cc1125_read_byte(0x01)); */
     /* pr_hex(USART_1, cc1125_read_byte(0x80)); */
-    cc1125_write_byte(0x3F, 'N');
-    cc1125_write_byte(0x3F, 'E');
-    cc1125_write_byte(0x3F, 'U');
-    cc1125_write_byte(0x3F, 'D');
-    cc1125_write_byte(0x3F, 'O');
-    cc1125_write_byte(0x3F, 'S');
-    cc1125_write_byte(0x3F, 'E');
+    for (int i = 0; i < 16; i++) {
+        cc1125_write_byte(0x3F, 'N');
+        cc1125_write_byte(0x3F, 'E');
+        cc1125_write_byte(0x3F, 'U');
+        cc1125_write_byte(0x3F, 'D');
+        cc1125_write_byte(0x3F, 'O');
+        cc1125_write_byte(0x3F, 'S');
+        cc1125_write_byte(0x3F, 'E');
+        cc1125_write_byte(0x3F, 'E');
+    }
 }
 
+void radio_CC1125_fill_buf(void)
+{
+    cc1125_write_byte(0x3F, 'E');
+}
 /***************************************************/
 
 // CANSAT
@@ -130,34 +171,29 @@ void radio_CC1125_test(void)
 
 void radio_CANSAT_power_on(void)
 {
-  // set pin to TPS22945 to high
-  LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_4);
+    // set pin to TPS22945 to high
+    LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_4);
 
-  /*   - UART for CANSAT - USART2 on PA2 and PA3 */
-  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_ALTERNATE);
+    /*   - UART for CANSAT - USART2 on PA2 and PA3 */
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_ALTERNATE);
 
-  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_2, LL_GPIO_AF_4); // USART2_TX
-  LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_3, LL_GPIO_AF_4); // USART2_RX
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_2, LL_GPIO_AF_4); // USART2_TX
+    LL_GPIO_SetAFPin_0_7(GPIOA, LL_GPIO_PIN_3, LL_GPIO_AF_4); // USART2_RX
 
-  /*LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_PUSHPULL);*/
-  /*LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_3, LL_GPIO_OUTPUT_PUSHPULL);*/
+    /*LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_PUSHPULL);*/
+    /*LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_3, LL_GPIO_OUTPUT_PUSHPULL);*/
 
-  LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_OPENDRAIN);
-  LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_3, LL_GPIO_OUTPUT_OPENDRAIN);
+    LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_OPENDRAIN);
+    LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_3, LL_GPIO_OUTPUT_OPENDRAIN);
 
-  LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_2, LL_GPIO_PULL_UP);
-  LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_3, LL_GPIO_PULL_UP);
-
-  __disable_irq();
-  for (volatile int j = 0; j < 1000; j++);;
-  for (volatile int j = 0; j < 1000; j++);;
-  __enable_irq();
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_2, LL_GPIO_PULL_UP);
+    LL_GPIO_SetPinPull(GPIOA, LL_GPIO_PIN_3, LL_GPIO_PULL_UP);
 }
 
 void radio_CANSAT_power_off(void)
 {
-  // set pin to TPS22945 to low
+    // set pin to TPS22945 to low
     LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_4);
 
     // set UART pins to high-impedance
@@ -171,7 +207,7 @@ void radio_CANSAT_power_off(void)
 
 void radio_CANSAT_init_callsigns(void)
 {
-    pr_str(USART_2, "CNEUDOSE\r");
+    pr_str(USART_2, "CN\r");
     /* pr_str(USART_2, "DCQ\r"); */
     /* pr_str(USART_2, "VTELEM\r"); */
 }
@@ -221,10 +257,10 @@ void radio_CANSAT_set_baud(CANSAT_baud_t baud)
 void radio_CANSAT_test(void)
 {
     /* radio_CANSAT_send_data((uint8_t*)"hi", 2); */
-  pr_ch(USART_2, 'S');
-  pr_ch(USART_2, 'h');
-  pr_ch(USART_2, 'i');
-  pr_ch(USART_2, '\r');
+    pr_ch(USART_2, 'S');
+    pr_ch(USART_2, 'h');
+    pr_ch(USART_2, 'i');
+    pr_ch(USART_2, '\r');
 }
 
 /***************************************************/

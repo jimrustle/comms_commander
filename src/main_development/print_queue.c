@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include "print_queue.h"
+#include "error.h"
 
 void queue_init(queue_t* q)
 {
@@ -42,6 +43,8 @@ char queue_rem_char(queue_t* q)
         q->n_elements--;
         return c;
     }
+
+    error_catch();
 
     return '@';
 }

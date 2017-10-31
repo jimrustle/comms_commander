@@ -6,6 +6,10 @@
 #include "spi.h"
 #include "log.h"
 #include "peripherals.h"
+#include "print_queue.h"
+
+extern queue_t spi1_tx_queue;
+extern queue_t spi1_rx_queue;
 
 uint8_t spi_read_write_byte(uint8_t data)
 {
@@ -43,11 +47,13 @@ uint8_t spi_read_write_byte(uint8_t data)
     }
     status = status | LL_GPIO_IsInputPinSet(GPIOA, LL_GPIO_PIN_6);
 #else
-    spi_tx_byte = data;
+    spi_transfer_completed = false;
+    queue_add_char(&spi1_tx_queue, data);
     LL_SPI_EnableIT_TXE(SPI1);
 
-    status = spi_rx_byte;
+    while(!spi_transfer_completed);
 
+    status = queue_rem_char(&spi1_rx_queue);
 #endif
 
     return status;
@@ -55,14 +61,10 @@ uint8_t spi_read_write_byte(uint8_t data)
 
 void spi_ss_low(void)
 {
-#ifdef SPI_BITBANG
     LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_4);
-#endif
 }
 
 void spi_ss_high(void)
 {
-#ifdef SPI_BITBANG
     LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_4);
-#endif
 }

@@ -1,5 +1,5 @@
 TARGET := comms_command
-OBJECTS := $(TARGET).o startup.o vectors.o log.o print_queue.o peripherals.o radio.o command.o radio_cc1125.o spi.o system_stm32l0xx.o stm32l0xx_hal_cortex.o stm32l0xx_ll_utils.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o stm32l0xx_ll_tim.o stm32l0xx_ll_spi.o
+OBJECTS := $(TARGET).o startup.o vectors.o log.o print_queue.o peripherals.o radio.o command.o radio_cc1125.o spi.o state_machine.o system_stm32l0xx.o stm32l0xx_hal_cortex.o stm32l0xx_ll_utils.o stm32l0xx_ll_usart.o stm32l0xx_ll_rcc.o stm32l0xx_ll_tim.o stm32l0xx_ll_spi.o
 PREPROCS := $(OBJECTS:.o=.i)
 
 RAM_START := 0x8000000
@@ -19,8 +19,8 @@ OPT		:= -ggdb -Os -msoft-float -DSTM32L0 -DUSE_FULL_LL_DRIVER -I../../libs/stm32
 CSTD	:= -std=c11
 
 CFLAGS	+= $(OPT) $(CSTD) #-pedantic
-CFLAGS	+= -Wall -Wextra -Wshadow -Wimplicit-function-declaration -Werror
-CFLAGS	+= -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
+CFLAGS	+= -Wall -Wextra -Wshadow -Wimplicit-function-declaration #-Werror
+CFLAGS	+= -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes -Wno-missing-braces
 CFLAGS	+= -fno-common -ffunction-sections -fdata-sections -fno-builtin -fstack-protector-all
 
 LDFLAGS		+=  --static -nostartfiles -nostdlib
@@ -90,6 +90,9 @@ upload_sb: $(TARGET).elf
 
 run: $(TARGET).elf
 	stm32flash /dev/ttyUSB0 -g 0x0
+
+format:
+	clang-format -i --style=WebKit *.c
 
 .PHONY: images clean stylecheck styleclean elf bin hex srec list
 
