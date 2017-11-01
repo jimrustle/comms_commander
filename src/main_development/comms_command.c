@@ -97,18 +97,8 @@ int main(void)
     LL_TIM_EnableIT_UPDATE(TIM2);
 
     while (1) {
-
       if (e != SLEEP) {
-        volatile uint8_t ret = 0;
-
-        /* pr_hex(USART_1, cc1125_read_byte(CC1125_IOCFG3)); */
-        ret = spi_read_write_byte(0x80 | (0x00 & 0xFF));
-        pr_hex(USART_1, ret);
-        pr_ch(USART_1, '-');
-        ret = spi_read_write_byte(0x00);
-        pr_hex(USART_1, ret);
-        pr_nl(USART_1);
-        /* radio_CC1125_config_radio(); */
+         radio_CC1125_config_radio(); 
         e = SLEEP;
       }
       else {
