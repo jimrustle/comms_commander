@@ -29,12 +29,13 @@
 volatile uint32_t millis = 0;
 static queue_t usart1_queue;
 static queue_t usart2_queue;
+static queue_t event_queue;
 queue_t spi1_tx_queue;
 queue_t spi1_rx_queue;
 volatile bool spi_transfer_completed = true;
 volatile bool usart1_tx_completed = true;
 volatile bool usart2_tx_completed = true;
-volatile event_t e = SLEEP;
+volatile event_t e = EVT_SLEEP;
 
 // error_catch serves as a debugging function that will catch all failed
 // asserts and trap execution for the debugger
@@ -72,7 +73,7 @@ int main(void)
 
     radio_config_t radio_config = {
         .is_enabled = true,
-        .tx_type = TX_DATA,
+        .tx_type = TX_TELEMETRY,
         .CANSAT_cfg = {
             .callsign = {
                 // FIXME 2017-10-20: change source callsign to an actual callsign
@@ -97,9 +98,10 @@ int main(void)
     LL_TIM_EnableIT_UPDATE(TIM2);
 
     while (1) {
-      if (e != SLEEP) {
-         radio_CC1125_config_radio(); 
-        e = SLEEP;
+      e = queue_pop(&event_queue);
+      if (e != EVT_SLEEP) {
+         radio_CC1125_config_radio();
+         e = EVT_SLEEP;
       }
       else {
         // wait for USART to complete transmitting before sleeping the CPU
@@ -121,11 +123,11 @@ void usart_putchar(usart_num u, char c);
 void usart_putchar(usart_num u, char c)
 {
     if (u == USART_1) {
-        queue_add_char(&usart1_queue, c);
+        queue_push(&usart1_queue, c);
         LL_USART_EnableIT_TXE(USART1);
         usart1_tx_completed = false;
     } else if (u == USART_2) {
-        queue_add_char(&usart2_queue, c);
+        queue_push(&usart2_queue, c);
         LL_USART_EnableIT_TXE(USART2);
     } else {
         error_catch();
@@ -145,16 +147,12 @@ void TIM2_IRQHandler()
         last_millis = millis;
         radio_LED_toggle();
 
-        e = RUN;
+        e = EVT_RUN; // wakeup every 500 ms
     }
+
     __enable_irq();
 }
 
-// 2017-08-07 FIXME: there is a race condition in the state machines of the USART1
-// and USART2 interrupt handlers
-// bonus points to [$favourite_harry_potter_house] if you can fix it
-// (or just use the USART DMA and hope the problem goes away lol)
-// 2017-10-27: I think it's fixed idk, needs more testing
 void USART1_IRQHandler(void);
 void USART1_IRQHandler()
 {
@@ -169,8 +167,8 @@ void USART1_IRQHandler()
 
         // echo char to serial
          if (c == '\r') {
-             queue_add_char(&usart1_queue, '\r');
-             queue_add_char(&usart1_queue, '\n');
+             queue_push(&usart1_queue, '\r');
+             queue_push(&usart1_queue, '\n');
          } else {
              pr_ch(USART_1, c);
          }
@@ -183,7 +181,7 @@ void USART1_IRQHandler()
             usart1_tx_completed = true;
         } else {
             // TXE flag cleared by writing to USART1 data register
-            LL_USART_TransmitData8(USART1, queue_rem_char(&usart1_queue));
+            LL_USART_TransmitData8(USART1, queue_pop(&usart1_queue));
             LL_USART_EnableIT_TXE(USART1);
         }
     }
@@ -205,7 +203,7 @@ void USART2_IRQHandler()
             usart2_tx_completed = true;
         } else {
             // TXE flag cleared by writing to USART2 data register
-            LL_USART_TransmitData8(USART2, queue_rem_char(&usart2_queue));
+            LL_USART_TransmitData8(USART2, queue_pop(&usart2_queue));
             LL_USART_EnableIT_TXE(USART2);
         }
     } else {
@@ -233,14 +231,14 @@ void SPI1_IRQHandler(void)
     } else {
       spi_ss_low();
       // TXE flag cleared by writing to SPI1 data register
-      LL_SPI_TransmitData8(SPI1, queue_rem_char(&spi1_tx_queue));
+      LL_SPI_TransmitData8(SPI1, queue_pop(&spi1_tx_queue));
       LL_SPI_EnableIT_TXE(SPI1);
     }
   }
 
   // receive
   if (LL_SPI_IsActiveFlag_RXNE(SPI1)) {
-    queue_add_char(&spi1_rx_queue, LL_SPI_ReceiveData8(SPI1));
+    queue_push(&spi1_rx_queue, LL_SPI_ReceiveData8(SPI1));
     LL_SPI_EnableIT_RXNE(SPI1);
   }
 

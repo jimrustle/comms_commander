@@ -1,6 +1,6 @@
 
 typedef enum event_t {
-  SLEEP, RUN
+  EVT_SLEEP, EVT_RUN
 } event_t;
 
 void run(void);

@@ -168,9 +168,7 @@ void cc1125_config_radio(void)
 #endif
     for (uint8_t i = 0; i < sizeof(preferredSettings) / sizeof(registerSetting_t); i++) {
         cc1125_write_byte(preferredSettings[i].addr, preferredSettings[i].data);
-    }
 
-    for (uint8_t i = 0; i < sizeof(preferredSettings) / sizeof(registerSetting_t); i++) {
         uint8_t check = cc1125_read_byte(preferredSettings[i].addr);
 
         if (check != preferredSettings[i].data) {

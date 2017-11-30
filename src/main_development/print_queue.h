@@ -11,6 +11,6 @@ typedef struct queue_t {
 } queue_t;
 
 void queue_init(queue_t* q);
-void queue_add_char(queue_t* q, char c);
+void queue_push(queue_t* q, char c);
 bool queue_is_empty(queue_t* q);
-char queue_rem_char(queue_t* q);
+char queue_pop(queue_t* q);

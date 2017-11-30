@@ -53,12 +53,12 @@ uint8_t spi_read_write_byte(uint8_t data)
 #ifndef SPI_BITBANG
 void spi_write_byte(uint8_t data) {
     spi_transfer_completed = false;
-    queue_add_char(&spi1_tx_queue, data);
+    queue_push(&spi1_tx_queue, data);
 }
 
 uint8_t spi_read_byte(void) {
     while(!spi_transfer_completed);
-    return queue_rem_char(&spi1_rx_queue);
+    return queue_pop(&spi1_rx_queue);
 }
 #endif
 
